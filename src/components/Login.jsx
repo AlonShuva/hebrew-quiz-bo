@@ -21,47 +21,21 @@ export default function Login() {
       display: "flex", flexDirection: "column",
       alignItems: "center", justifyContent: "center",
       padding: "30px 20px",
-      position: "relative",
-      fontFamily: "'Segoe UI', Arial, sans-serif",
     }}>
-
-      {/* Starfield */}
-      <div style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none" }}>
-        {stars.map((s, i) => (
-          <div key={i} style={{
-            position: "absolute", left: s.x, top: s.y,
-            width: s.r, height: s.r, borderRadius: "50%",
-            background: "white", opacity: s.o,
-            animation: `twinkle ${s.d}s ease-in-out infinite`,
-            animationDelay: `${s.delay}s`,
-          }} />
-        ))}
-      </div>
-      <style>{`@keyframes twinkle { 0%,100%{opacity:var(--op,0.6)} 50%{opacity:0.1} }`}</style>
-
-      {/* Card */}
-      <div style={{
-        background: "rgba(10,14,40,0.92)",
-        border: "1.5px solid #2a3a52",
-        borderRadius: 16,
-        boxShadow: "0 8px 40px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.04)",
+      <div className="card" style={{
         padding: "48px 40px",
         width: "100%", maxWidth: 400,
         textAlign: "center",
-        position: "relative", zIndex: 1,
-        backdropFilter: "blur(12px)",
       }}>
-
         <h1 style={{
-          fontSize: "2rem", fontWeight: 800,
-          color: "#93c5fd",
-          textShadow: "0 0 24px rgba(147,197,253,0.3)",
+          fontSize: "2rem", fontWeight: 900,
+          color: "#2e7d32",
           marginBottom: 8, letterSpacing: "-0.5px",
         }}>
           למידת מתמטיקה
         </h1>
 
-        <p style={{ color: "#475569", marginBottom: 36, fontSize: "0.9rem", lineHeight: 1.6 }}>
+        <p style={{ color: "#4a7c59", marginBottom: 36, fontSize: "0.9rem", lineHeight: 1.6 }}>
           תרגל/י מציאת תחום הגדרה של פונקציות בצורה אינטראקטיבית
         </p>
 
@@ -71,45 +45,19 @@ export default function Login() {
             <div key={sym} style={{ textAlign: "center" }}>
               <div style={{
                 width: 48, height: 48,
-                background: "rgba(255,255,255,0.04)",
-                border: "1.5px solid #2a3a52",
+                background: "rgba(67,160,71,0.1)",
+                border: "1.5px solid rgba(67,160,71,0.3)",
                 borderRadius: 12,
                 display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: "1.4rem", color: "#93c5fd", fontWeight: 700,
+                fontSize: "1.4rem", color: "#2e7d32", fontWeight: 700,
                 margin: "0 auto 6px",
               }}>{sym}</div>
-              <span style={{ fontSize: "0.75rem", color: "#475569" }}>{label}</span>
+              <span style={{ fontSize: "0.75rem", color: "#4a7c59" }}>{label}</span>
             </div>
           ))}
         </div>
 
-        {/* Google login button */}
-        <button
-          onClick={handleLogin}
-          style={{
-            width: "100%", padding: "14px",
-            background: "linear-gradient(160deg, #1a2035, #111827)",
-            border: "1.5px solid #2a3a52",
-            borderRadius: 10, cursor: "pointer",
-            color: "#cbd5e1", fontSize: "1rem", fontWeight: 800,
-            fontFamily: "inherit",
-            boxShadow: "0 2px 12px rgba(0,0,0,0.4)",
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-            transition: "all 0.2s",
-          }}
-          onMouseEnter={e => {
-            e.currentTarget.style.background = "linear-gradient(160deg, #1e2a42, #151e2e)";
-            e.currentTarget.style.borderColor = "#3d5275";
-            e.currentTarget.style.transform = "translateY(-1px)";
-            e.currentTarget.style.boxShadow = "0 6px 20px rgba(0,0,0,0.5)";
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.background = "linear-gradient(160deg, #1a2035, #111827)";
-            e.currentTarget.style.borderColor = "#2a3a52";
-            e.currentTarget.style.transform = "translateY(0)";
-            e.currentTarget.style.boxShadow = "0 2px 12px rgba(0,0,0,0.4)";
-          }}
-        >
+        <button onClick={handleLogin} className="btn-primary" style={{ width: "100%", padding: "14px" }}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
             <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -119,19 +67,10 @@ export default function Login() {
           התחבר/י עם Google
         </button>
 
-        <p style={{ marginTop: 20, fontSize: "0.78rem", color: "#334155" }}>
+        <p style={{ marginTop: 20, fontSize: "0.78rem", color: "#4a7c59" }}>
           כניסה מאובטחת · שמירת התקדמות אוטומטית
         </p>
       </div>
     </div>
   );
 }
-
-const stars = Array.from({ length: 60 }, (_, i) => ({
-  x: `${(i * 37.3 + 11) % 100}%`,
-  y: `${(i * 53.7 + 7)  % 100}%`,
-  r: i % 5 === 0 ? 3 : i % 3 === 0 ? 2 : 1.5,
-  o: 0.3 + (i % 7) * 0.1,
-  d: 2 + (i % 4),
-  delay: (i % 6) * 0.5,
-}));

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { db } from "../firebase/config";
-import { doc, setDoc, onSnapshot, updateDoc, collection, getDocs, query, where } from "firebase/firestore";
+import { doc, setDoc, onSnapshot, updateDoc, collection, getDocs, query, getDoc } from "firebase/firestore";
+import { recordQuestionStat } from "../firebase/questionStats";
 import MathText from "./MathText";
 
 export default function Multiplayer({ user, onBack }) {
@@ -13,51 +14,65 @@ export default function Multiplayer({ user, onBack }) {
   const [selected, setSelected] = useState(null);
 
   const createGame = async () => {
-    const code = Math.floor(1000 + Math.random() * 9000).toString();
-    const q = query(collection(db, "questions"));
-    const snap = await getDocs(q);
-    const allQuestions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    const picked = allQuestions.sort(() => Math.random() - 0.5).slice(0, 5);
+    try {
+      const code = Math.floor(1000 + Math.random() * 9000).toString();
+      const q = query(collection(db, "curriculumQuestions"));
+      const snap = await getDocs(q);
+      const allQuestions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const picked = allQuestions.sort(() => Math.random() - 0.5).slice(0, 5);
 
-    await setDoc(doc(db, "games", code), {
-      status: "waiting",
-      questions: picked,
-      currentQuestion: 0,
-      players: {
-        [user.uid]: { displayName: user.displayName, score: 0 }
-      }
-    });
+      await setDoc(doc(db, "games", code), {
+        status: "waiting",
+        questions: picked,
+        currentQuestion: 0,
+        createdAt: new Date().toISOString(),
+        players: {
+          [user.uid]: { displayName: user.displayName || user.email?.split('@')[0] || "שחקן", score: 0 }
+        }
+      });
 
-    setGameId(code);
-    setQuestions(picked);
-    setScreen("waiting");
+      setGameId(code);
+      setQuestions(picked);
+      setScreen("waiting");
 
-    const unsubscribe = onSnapshot(doc(db, "games", code), (snap) => {
-      const data = snap.data();
-      setGame(data);
-      if (data.status === "active") {
-        setScreen("playing");
-      }
-    });
+      const unsubscribe = onSnapshot(doc(db, "games", code), (snap) => {
+        const data = snap.data();
+        setGame(data);
+        if (data.status === "active") {
+          setScreen("playing");
+        }
+      });
+    } catch (e) {
+      alert("שגיאה ביצירת משחק: " + e.message);
+    }
   };
 
   const joinGame = async () => {
-    const gameRef = doc(db, "games", joinCode);
-    await updateDoc(gameRef, {
-      [`players.${user.uid}`]: { displayName: user.displayName, score: 0 },
-      status: "active"
-    });
+    try {
+      const gameRef = doc(db, "games", joinCode);
+      const gameSnap = await getDoc(gameRef);
+      if (!gameSnap.exists()) {
+        alert("קוד משחק לא קיים");
+        return;
+      }
+      await updateDoc(gameRef, {
+        [`players.${user.uid}`]: { displayName: user.displayName || user.email?.split('@')[0] || "שחקן", score: 0 },
+        status: "active"
+      });
 
-    setGameId(joinCode);
-    setScreen("playing");
+      setGameId(joinCode);
+      setScreen("playing");
 
-    const unsubscribe = onSnapshot(gameRef, (snap) => {
-      const data = snap.data();
-      setGame(data);
-      setQuestions(data.questions);
-      setCurrent(data.currentQuestion || 0);
-      if (data.status === "finished") setScreen("finished");
-    });
+      const unsubscribe = onSnapshot(gameRef, (snap) => {
+        const data = snap.data();
+        setGame(data);
+        setQuestions(data.questions);
+        setCurrent(data.currentQuestion || 0);
+        if (data.status === "finished") setScreen("finished");
+      });
+    } catch (e) {
+      alert("שגיאה בהצטרפות למשחק: " + e.message);
+    }
   };
 
   const handleAnswer = async (index) => {
@@ -66,16 +81,38 @@ export default function Multiplayer({ user, onBack }) {
 
     const q = questions[current];
     const isCorrect = index === q.correctIndex;
+    recordQuestionStat(q.id, q.levelId, isCorrect, index);
     const points = isCorrect ? (q.level || 1) * 10 : 0;
 
     const gameRef = doc(db, "games", gameId);
+    const newScore = (game.players[user.uid].score || 0) + points;
     await updateDoc(gameRef, {
-      [`players.${user.uid}.score`]: (game.players[user.uid].score || 0) + points
+      [`players.${user.uid}.score`]: newScore
     });
 
     setTimeout(async () => {
       if (current + 1 >= questions.length) {
-        await updateDoc(gameRef, { status: "finished" });
+        await updateDoc(gameRef, {
+          status: "finished",
+          finishedAt: new Date().toISOString(),
+        });
+
+        try {
+          const progressRef = doc(db, "userProgress", user.uid);
+          const progressSnap = await getDoc(progressRef);
+          const prev = progressSnap.exists() ? progressSnap.data() : {};
+          await setDoc(progressRef, {
+            uid: user.uid,
+            displayName: user.displayName || user.email?.split('@')[0] || "שחקן",
+            email: user.email || "",
+            totalPoints: (prev.totalPoints || 0) + newScore,
+            gamesPlayed: (prev.gamesPlayed || 0) + 1,
+            lastSeen: new Date().toISOString(),
+          }, { merge: true });
+        } catch (e) {
+          console.error("Failed to save game result to userProgress:", e);
+        }
+
         setScreen("finished");
       } else {
         await updateDoc(gameRef, { currentQuestion: current + 1 });
@@ -88,7 +125,7 @@ export default function Multiplayer({ user, onBack }) {
   if (screen === "lobby") return (
     <div style={centerStyle}>
       <button onClick={onBack} style={{ ...backBtn, alignSelf: "flex-start", marginBottom: "20px" }}>← חזור</button>
-      <h2 style={{ marginBottom: "30px" }}>👥 מולטיפלייר</h2>
+      <h2 style={{ marginBottom: "30px" }}>⚔️ דו-קרב</h2>
       <button onClick={createGame} style={bigBtn("#4285F4")}>🎮 צור משחק חדש</button>
       <p style={{ margin: "20px 0", color: "#666" }}>או</p>
       <input

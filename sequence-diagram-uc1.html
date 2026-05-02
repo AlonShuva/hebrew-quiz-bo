@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sequence Diagram — UC1: Single Player</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #e8ecf0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 30px;
+    font-family: Arial, sans-serif;
+  }
+  .wrapper {
+    background: white;
+    border: 1px solid #bbb;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.15);
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+<svg viewBox="0 0 940 740" width="940" height="740"
+     xmlns="http://www.w3.org/2000/svg" font-family="Arial, sans-serif">
+
+  <defs>
+    <!-- Solid arrowhead (request) -->
+    <marker id="arr" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto">
+      <polygon points="0 0, 9 3.5, 0 7" fill="#444"/>
+    </marker>
+    <!-- Open arrowhead (return / dashed) -->
+    <marker id="arr-ret" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto">
+      <polyline points="0 0, 9 3.5, 0 7" fill="none" stroke="#777" stroke-width="1.2"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="940" height="740" fill="white"/>
+
+  <!-- ── Title note ── -->
+  <polygon points="10,10 290,10 305,24 305,56 10,56" fill="#dce9f7" stroke="#6aa3d5" stroke-width="1"/>
+  <polygon points="290,10 305,10 305,24" fill="#aac8e0" stroke="#6aa3d5" stroke-width="1"/>
+  <text x="18" y="28" font-size="10.5" font-weight="bold" fill="#1a3a5c">Sequence Diagram — UC1: Single Player</text>
+  <text x="18" y="45" font-size="10.5" fill="#1a3a5c">Student question-answering flow</text>
+
+  <!-- ══════════ ACTOR BOXES ══════════ -->
+  <!-- Student: center=120 | Frontend: center=440 | Firestore: center=780 -->
+
+  <rect x="58"  y="72" width="124" height="36" rx="8" fill="#b8d4f0" stroke="#5b9bd5" stroke-width="1.5"/>
+  <text x="120" y="92"  text-anchor="middle" font-size="11" font-weight="bold" fill="#1a3a5c">Student</text>
+  <text x="120" y="103" text-anchor="middle" font-size="9"  fill="#1a3a5c">(User)</text>
+
+  <rect x="378" y="72" width="124" height="36" rx="8" fill="#b8d4f0" stroke="#5b9bd5" stroke-width="1.5"/>
+  <text x="440" y="92"  text-anchor="middle" font-size="11" font-weight="bold" fill="#1a3a5c">Frontend</text>
+  <text x="440" y="103" text-anchor="middle" font-size="9"  fill="#1a3a5c">(SinglePlayer)</text>
+
+  <rect x="718" y="72" width="124" height="36" rx="8" fill="#b8d4f0" stroke="#5b9bd5" stroke-width="1.5"/>
+  <text x="780" y="92"  text-anchor="middle" font-size="11" font-weight="bold" fill="#1a3a5c">Firestore</text>
+  <text x="780" y="103" text-anchor="middle" font-size="9"  fill="#1a3a5c">(Database)</text>
+
+  <!-- ══════════ LIFELINES ══════════ -->
+  <line x1="120" y1="108" x2="120" y2="726" stroke="#bbb" stroke-width="1.5" stroke-dasharray="6,4"/>
+  <line x1="440" y1="108" x2="440" y2="726" stroke="#bbb" stroke-width="1.5" stroke-dasharray="6,4"/>
+  <line x1="780" y1="108" x2="780" y2="726" stroke="#bbb" stroke-width="1.5" stroke-dasharray="6,4"/>
+
+  <!-- ══════════ MESSAGES ══════════ -->
+
+  <!-- 1. Student → Frontend: Start -->
+  <line x1="120" y1="140" x2="434" y2="140" stroke="#444" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="280" y="133" text-anchor="middle" font-size="9.5" fill="#222">1: Start SinglePlayer (select level)</text>
+
+  <!-- 2. Frontend → Firestore: fetch questions -->
+  <line x1="440" y1="166" x2="774" y2="166" stroke="#444" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="610" y="159" text-anchor="middle" font-size="9.5" fill="#222">2: getDocs(curriculumQuestions, levelId)</text>
+
+  <!-- 3. Firestore → Frontend: return questions (dashed) -->
+  <line x1="780" y1="192" x2="446" y2="192" stroke="#777" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arr-ret)"/>
+  <text x="610" y="185" text-anchor="middle" font-size="9.5" fill="#666">3: questions[ ]</text>
+
+  <!-- 4. Frontend → Student: display first question -->
+  <line x1="440" y1="218" x2="126" y2="218" stroke="#444" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="280" y="211" text-anchor="middle" font-size="9.5" fill="#222">4: הצגת שאלה ראשונה + 4 אפשרויות</text>
+
+  <!-- ══ LOOP FRAME ══ -->
+  <rect x="28" y="236" width="888" height="332" fill="none" stroke="#5b9bd5" stroke-width="1.5" stroke-dasharray="8,4" rx="4"/>
+  <rect x="28" y="236" width="48" height="18"  fill="#dce9f7" stroke="#5b9bd5" stroke-width="1" rx="2"/>
+  <text x="52" y="249" text-anchor="middle" font-size="9" font-weight="bold" fill="#1a3a5c">loop</text>
+  <text x="108" y="250" font-size="9" fill="#5b9bd5">[for each question]</text>
+
+  <!-- 5. Student → Frontend: select answer -->
+  <line x1="120" y1="276" x2="434" y2="276" stroke="#444" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="280" y="269" text-anchor="middle" font-size="9.5" fill="#222">5: בחירת תשובה (א / ב / ג / ד)</text>
+
+  <!-- 6. Frontend → Firestore: recordQuestionStat -->
+  <line x1="440" y1="304" x2="774" y2="304" stroke="#444" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="610" y="297" text-anchor="middle" font-size="9.5" fill="#222">6: recordQuestionStat(id, isCorrect, index)</text>
+
+  <!-- 7. Firestore → Frontend: confirmed (dashed) -->
+  <line x1="780" y1="330" x2="446" y2="330" stroke="#777" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arr-ret)"/>
+  <text x="610" y="323" text-anchor="middle" font-size="9.5" fill="#666">7: increment confirmed</text>
+
+  <!-- 8. Frontend → Student: show feedback -->
+  <line x1="440" y1="358" x2="126" y2="358" stroke="#444" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="280" y="351" text-anchor="middle" font-size="9.5" fill="#222">8: הצגת משוב (✓ נכון / ✗ שגוי + כפתור המשך)</text>
+
+  <!-- ══ ALT FRAME inside loop ══ -->
+  <rect x="42" y="374" width="864" height="184" fill="none" stroke="#aaa" stroke-width="1.2" stroke-dasharray="5,3" rx="3"/>
+  <rect x="42" y="374" width="36" height="16" fill="#f5f5f5" stroke="#aaa" stroke-width="1" rx="2"/>
+  <text x="60" y="386" text-anchor="middle" font-size="9" font-weight="bold" fill="#666">alt</text>
+
+  <!-- alt branch 1 label -->
+  <text x="110" y="388" font-size="9" fill="#888">[more questions remaining]</text>
+
+  <!-- 9a. Student → Frontend: next question -->
+  <line x1="120" y1="410" x2="434" y2="410" stroke="#444" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="280" y="403" text-anchor="middle" font-size="9.5" fill="#222">9a: לחיצה על "שאלה הבאה ←"</text>
+
+  <!-- 9b. Frontend → Student: show next question -->
+  <line x1="440" y1="436" x2="126" y2="436" stroke="#444" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="280" y="429" text-anchor="middle" font-size="9.5" fill="#222">9b: הצגת שאלה הבאה</text>
+
+  <!-- alt divider -->
+  <line x1="42" y1="456" x2="906" y2="456" stroke="#aaa" stroke-width="1" stroke-dasharray="5,3"/>
+  <text x="110" y="470" font-size="9" fill="#888">[last question]</text>
+
+  <!-- 9c. Student → Frontend: click finish -->
+  <line x1="120" y1="488" x2="434" y2="488" stroke="#444" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="280" y="481" text-anchor="middle" font-size="9.5" fill="#222">9c: לחיצה על "סיים משחק"</text>
+
+  <!-- ══ AFTER LOOP ══ -->
+
+  <!-- 10. Frontend → Firestore: saveScore -->
+  <line x1="440" y1="590" x2="774" y2="590" stroke="#444" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="610" y="583" text-anchor="middle" font-size="9.5" fill="#222">10: setDoc(users/uid, { totalScore++, gamesPlayed++ })</text>
+
+  <!-- 11. Firestore → Frontend: saved (dashed) -->
+  <line x1="780" y1="618" x2="446" y2="618" stroke="#777" stroke-width="1.5" stroke-dasharray="6,3" marker-end="url(#arr-ret)"/>
+  <text x="610" y="611" text-anchor="middle" font-size="9.5" fill="#666">11: saved ✓</text>
+
+  <!-- 12. Frontend → Student: show results screen -->
+  <line x1="440" y1="646" x2="126" y2="646" stroke="#444" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="280" y="639" text-anchor="middle" font-size="9.5" fill="#222">12: הצגת תוצאות (ניקוד, נכון/שגוי, דיוק %)</text>
+
+  <!-- ══ Closing actor boxes (bottom) ══ -->
+  <rect x="58"  y="692" width="124" height="32" rx="8" fill="#b8d4f0" stroke="#5b9bd5" stroke-width="1.5"/>
+  <text x="120" y="712" text-anchor="middle" font-size="11" font-weight="bold" fill="#1a3a5c">Student</text>
+
+  <rect x="378" y="692" width="124" height="32" rx="8" fill="#b8d4f0" stroke="#5b9bd5" stroke-width="1.5"/>
+  <text x="440" y="712" text-anchor="middle" font-size="11" font-weight="bold" fill="#1a3a5c">Frontend</text>
+
+  <rect x="718" y="692" width="124" height="32" rx="8" fill="#b8d4f0" stroke="#5b9bd5" stroke-width="1.5"/>
+  <text x="780" y="712" text-anchor="middle" font-size="11" font-weight="bold" fill="#1a3a5c">Firestore</text>
+
+</svg>
+</div>
+</body>
+</html>

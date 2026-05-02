@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { db } from "../firebase/config";
 import { doc, getDoc, setDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { recordQuestionStat } from "../firebase/questionStats";
 import MathText from "./MathText";
 import { curriculum } from "../../lib/curriculum.js";
 
@@ -30,6 +31,10 @@ export default function CurriculumGame({ user, levelId, totalLevels = 30, onBack
   const [score, setScore] = useState(0);
   const [levelPoints, setLevelPoints] = useState(0);
   const [lives, setLives] = useState(MAX_LIVES);
+  const [totalPoints, setTotalPoints] = useState(0);
+  const [hintUsed, setHintUsed] = useState([]);
+  const [hintModal, setHintModal] = useState(false);
+  const [successTotal, setSuccessTotal] = useState(0);
   const levelPointsRef = useRef(0);
   const livesRef = useRef(MAX_LIVES);
 
@@ -42,11 +47,22 @@ export default function CurriculumGame({ user, levelId, totalLevels = 30, onBack
       getDoc(doc(db, "userProgress", user.uid)),
     ]);
 
-    // Points
+    // Points — use Firestore value only if it's a positive number
     const lvlData = lvlSnap.docs[0]?.data();
-    const pts = lvlData?.points ?? Math.round((50 + levelId * 10) / 5) * 5;
+    const pts = (lvlData?.points > 0) ? lvlData.points : Math.round((50 + levelId * 10) / 5) * 5;
     levelPointsRef.current = pts;
     setLevelPoints(pts);
+
+    // Write level to curriculumLevels if not already there
+    if (!lvlSnap.docs[0]) {
+      const staticLevel = curriculum.find(l => l.id === Number(levelId));
+      await setDoc(doc(db, "curriculumLevels", String(levelId)), {
+        id: Number(levelId),
+        title: staticLevel?.title || `רמה ${levelId}`,
+        points: pts,
+        firstOpenedAt: new Date().toISOString(),
+      });
+    }
 
     // Lives — reset daily
     const prev = progressSnap.exists() ? progressSnap.data() : {};
@@ -59,6 +75,7 @@ export default function CurriculumGame({ user, levelId, totalLevels = 30, onBack
     }
     livesRef.current = currentLives;
     setLives(currentLives);
+    setTotalPoints(prev.totalPoints || 0);
 
     if (currentLives === 0) { setPhase("noLives"); return; }
 
@@ -68,6 +85,8 @@ export default function CurriculumGame({ user, levelId, totalLevels = 30, onBack
     setCurrent(0);
     setSelected(null);
     setScore(0);
+    setHintUsed([]);
+    setHintModal(false);
     setPhase("playing");
   }, [levelId, user.uid]);
 
@@ -81,10 +100,24 @@ export default function CurriculumGame({ user, levelId, totalLevels = 30, onBack
     return newLives;
   };
 
+  const hintCost = questions.length > 0
+    ? Math.max(5, Math.round((levelPoints / questions.length) * 1.5 / 5) * 5)
+    : 0;
+
+  const confirmHint = async () => {
+    const newTotal = Math.max(0, totalPoints - hintCost);
+    await setDoc(doc(db, "userProgress", user.uid), { totalPoints: newTotal }, { merge: true });
+    setTotalPoints(newTotal);
+    setHintUsed(prev => { const next = [...prev]; next[current] = true; return next; });
+    setHintModal(false);
+  };
+
   const handleAnswer = async (index) => {
     if (selected !== null) return;
     setSelected(index);
-    if (index !== questions[current].correctIndex) {
+    const isCorrect = index === questions[current].correctIndex;
+    recordQuestionStat(questions[current].id, levelId, isCorrect, index);
+    if (!isCorrect) {
       await deductLife();
     } else {
       setScore(s => s + 1);
@@ -104,22 +137,33 @@ export default function CurriculumGame({ user, levelId, totalLevels = 30, onBack
     }
 
     if (current + 1 >= questions.length) {
-      const ref = doc(db, "userProgress", user.uid);
-      const snap = await getDoc(ref);
-      const prev = snap.exists() ? snap.data() : {};
-      const alreadyCompleted = (prev.completedLevels || []).includes(levelId);
-      const completed = [...new Set([...(prev.completedLevels || []), levelId])];
-      const nextLevel = levelId + 1;
-      await setDoc(ref, {
-        ...prev,
-        completedLevels: completed,
-        currentLevel: nextLevel <= totalLevels ? nextLevel : levelId,
-        phaseB: nextLevel > totalLevels,
-        totalPoints: (prev.totalPoints || 0) + (alreadyCompleted ? 0 : levelPointsRef.current),
-        displayName: user.displayName || "",
-        photoURL: user.photoURL || "",
-      }, { merge: true });
-      setPhase("success");
+      try {
+        const ref = doc(db, "userProgress", user.uid);
+        const snap = await getDoc(ref);
+        const prev = snap.exists() ? snap.data() : {};
+        const prevCompleted = (prev.completedLevels || []).map(Number);
+        const alreadyCompleted = prevCompleted.includes(Number(levelId));
+        const toAdd = alreadyCompleted ? 0 : levelPointsRef.current;
+        const newTotal = (prev.totalPoints || 0) + toAdd;
+        const completed = [...new Set([...prevCompleted, Number(levelId)])];
+        const nextLevel = Number(levelId) + 1;
+        await setDoc(ref, {
+          completedLevels: completed,
+          currentLevel: nextLevel <= totalLevels ? nextLevel : Number(levelId),
+          phaseB: nextLevel > totalLevels,
+          totalPoints: newTotal,
+          displayName: user.displayName || user.email?.split('@')[0] || "שחקן",
+          photoURL: user.photoURL || "",
+          email: user.email || "",
+        }, { merge: true });
+        setSuccessTotal(newTotal);
+        setTotalPoints(newTotal);
+        setLevelPoints(toAdd); // show actual points earned (0 if already completed)
+        setPhase("success");
+      } catch (e) {
+        console.error("handleNext save error:", e);
+        alert("שגיאה בשמירת הנקודות: " + e.message);
+      }
     } else {
       setCurrent(c => c + 1);
       setSelected(null);
@@ -130,6 +174,8 @@ export default function CurriculumGame({ user, levelId, totalLevels = 30, onBack
     setCurrent(0);
     setSelected(null);
     setScore(0);
+    setHintUsed([]);
+    setHintModal(false);
     setPhase("playing");
   };
 
@@ -143,9 +189,9 @@ export default function CurriculumGame({ user, levelId, totalLevels = 30, onBack
     </div>
   );
 
-  // Wrapper for non-playing phases: lives bar top-left + centered card
+  // Wrapper for non-playing phases
   const wrap = (content) => (
-    <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", flexDirection: "column", fontFamily: "'Segoe UI', Arial, sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", flexDirection: "column", fontFamily: "'Heebo', Arial, sans-serif" }}>
       <div style={{ padding: "12px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <LivesBar lives={lives} />
         <button onClick={onBack} className="btn-back">← חזור</button>
@@ -219,9 +265,12 @@ export default function CurriculumGame({ user, levelId, totalLevels = 30, onBack
       <div style={{ fontSize: "3.5rem", marginBottom: "12px" }}>🎉</div>
       <h2 style={{ fontSize: "1.6rem", fontWeight: "800", marginBottom: "8px", color: "var(--text)" }}>כל הכבוד!</h2>
       <p style={{ color: "var(--text-secondary)", marginBottom: "6px" }}>עברת את רמה {levelId} בהצלחה</p>
-      <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", background: "var(--success-bg)", border: "1px solid var(--success)", borderRadius: "10px", padding: "6px 16px", marginBottom: "12px" }}>
-        <span style={{ fontSize: "1.1rem" }}>⭐</span>
-        <span style={{ fontWeight: "800", fontSize: "1rem", color: "var(--success)" }}>+{levelPoints} נקודות</span>
+      <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: "4px", background: "var(--success-bg)", border: "1px solid var(--success)", borderRadius: "10px", padding: "10px 20px", marginBottom: "12px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+          <span style={{ fontSize: "1.1rem" }}>⭐</span>
+          <span style={{ fontWeight: "800", fontSize: "1rem", color: "var(--success)" }}>+{levelPoints} נקודות</span>
+        </div>
+        <span style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}>סה"כ: {successTotal} נקודות</span>
       </div>
       <p style={{ fontSize: "0.88rem", color: "var(--text-secondary)", marginBottom: "28px" }}>
         {levelId < totalLevels ? `רמה ${levelId + 1} נפתחה!` : `סיימת את כל ${totalLevels} הרמות! 🏆`}
@@ -246,10 +295,51 @@ export default function CurriculumGame({ user, levelId, totalLevels = 30, onBack
   const progress = (current / questions.length) * 100;
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", flexDirection: "column", alignItems: "center", padding: "24px 20px", fontFamily: "'Segoe UI', Arial, sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", flexDirection: "column", alignItems: "center", padding: "24px 20px", fontFamily: "'Heebo', Arial, sans-serif" }}>
+
+      {/* Hint popup */}
+      {hintModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+          <div className="card popIn" style={{ padding: "32px 28px", maxWidth: "340px", width: "100%", textAlign: "center" }}>
+            {totalPoints >= hintCost ? (
+              <>
+                <div style={{ fontSize: "2.5rem", marginBottom: "12px" }}>💡</div>
+                <h3 style={{ margin: "0 0 8px", fontSize: "1.2rem", color: "var(--text)" }}>השתמש/י ברמז?</h3>
+                <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", marginBottom: "6px" }}>
+                  עלות: <strong style={{ color: "#E65100" }}>{hintCost} נקודות</strong>
+                </p>
+                <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem", marginBottom: "24px" }}>
+                  נקודות נוכחיות: {totalPoints}
+                </p>
+                <button onClick={confirmHint} className="btn-primary" style={{ width: "100%", marginBottom: "10px", background: "#F9A825", borderColor: "#F9A825" }}>
+                  💡 השתמש ברמז
+                </button>
+                <button onClick={() => setHintModal(false)} style={{ width: "100%", padding: "10px", background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: "0.9rem" }}>
+                  חזור לשאלה
+                </button>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: "2.5rem", marginBottom: "12px" }}>😔</div>
+                <h3 style={{ margin: "0 0 8px", fontSize: "1.2rem", color: "var(--error)" }}>אין מספיק נקודות</h3>
+                <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", marginBottom: "6px" }}>
+                  הרמז עולה <strong>{hintCost} נקודות</strong>
+                </p>
+                <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem", marginBottom: "24px" }}>
+                  יש לך {totalPoints} נקודות בלבד
+                </p>
+                <button onClick={() => setHintModal(false)} className="btn-primary" style={{ width: "100%" }}>
+                  חזור לשאלה
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       <div style={{ width: "100%", maxWidth: "560px" }}>
 
-        {/* Top bar — lives + back on LEFT, level badge on RIGHT */}
+        {/* Top bar */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <LivesBar lives={lives} />
@@ -317,13 +407,35 @@ export default function CurriculumGame({ user, levelId, totalLevels = 30, onBack
                   background: selected !== null ? (isCorrect ? "var(--success)" : isSelected ? "var(--error)" : "var(--border)") : "var(--primary-bg)",
                   color: selected !== null ? "white" : "var(--primary)"
                 }}>
-                  {icon || String.fromCharCode(65 + i)}
+                  {icon || ['א','ב','ג','ד'][i]}
                 </div>
                 <MathText text={opt} />
               </button>
             );
           })}
         </div>
+
+        {/* Hint — button or revealed text, shown below options */}
+        {q.hint && (
+          <div style={{ marginBottom: "12px" }}>
+            {hintUsed[current] ? (
+              <div className="fadeIn" style={{ background: "#FFFDE7", border: "1.5px solid #F9A825", borderRadius: "10px", padding: "12px 16px" }}>
+                <span style={{ fontSize: "0.78rem", color: "#E65100", fontWeight: 700 }}>💡 רמז</span>
+                <p style={{ margin: "6px 0 0", color: "#4E342E", lineHeight: 1.6, fontSize: "0.95rem" }}>
+                  <MathText text={q.hint} />
+                </p>
+              </div>
+            ) : selected === null ? (
+              <button onClick={() => setHintModal(true)} style={{
+                width: "100%", padding: "11px 16px", background: "#FFFDE7", border: "1.5px solid #F9A825",
+                borderRadius: "10px", cursor: "pointer", fontSize: "0.88rem", fontWeight: 700,
+                color: "#E65100", textAlign: "center", fontFamily: "inherit",
+              }}>
+                💡 רמז
+              </button>
+            ) : null}
+          </div>
+        )}
 
         {/* Feedback */}
         {selected !== null && (

@@ -3,8 +3,9 @@ import { db } from "../firebase/config";
 import { collection, getDocs, deleteDoc, updateDoc, doc, where, writeBatch, query, setDoc, addDoc } from "firebase/firestore";
 import { curriculum } from "../../lib/curriculum.js";
 import MathText from "./MathText";
+import StatsDashboard from "./StatsDashboard";
 
-const EMPTY_FORM = { text: "", options: ["","","",""], correctIndex: 0 };
+const EMPTY_FORM = { text: "", options: ["","","",""], correctIndex: 0, hint: "" };
 
 export default function AdminPanel({ onBack }) {
   const [section, setSection] = useState(null); // null = home | "curriculum" | "trash"
@@ -18,6 +19,10 @@ export default function AdminPanel({ onBack }) {
   const [modalMode, setModalMode] = useState(null);
   const [editingCurrQ, setEditingCurrQ] = useState(null);
   const [currQForm, setCurrQForm] = useState(EMPTY_FORM);
+
+  // Inline hint editing
+  const [editingHintId, setEditingHintId] = useState(null);
+  const [editingHintValue, setEditingHintValue] = useState("");
 
   // Level name editing
   const [levelNames, setLevelNames] = useState({});
@@ -102,7 +107,11 @@ export default function AdminPanel({ onBack }) {
   const fetchCurriculumLevel = async (levelId) => {
     const q = query(collection(db, "curriculumQuestions"), where("levelId", "==", levelId));
     const snap = await getDocs(q);
-    return snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.questionIndex - b.questionIndex);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => {
+      const aDate = a.createdAt || '';
+      const bDate = b.createdAt || '';
+      return bDate.localeCompare(aDate);
+    });
   };
 
   const fetchAllCurriculumCounts = async () => {
@@ -120,6 +129,19 @@ export default function AdminPanel({ onBack }) {
 
   const openCurrLevel = async (levelId) => {
     setCurrTab(levelId);
+    // Persist level to curriculumLevels if it hasn't been saved yet
+    if (!levelNames[levelId]) {
+      const staticLevel = curriculum.find(l => l.id === levelId);
+      const title = staticLevel?.title || `רמה ${levelId}`;
+      await setDoc(doc(db, "curriculumLevels", String(levelId)), {
+        id: levelId,
+        title,
+        points: getDefaultPoints(levelId),
+        firstOpenedAt: new Date().toISOString(),
+      });
+      setLevelNames(prev => ({ ...prev, [levelId]: title }));
+      setLevelPoints(prev => ({ ...prev, [levelId]: getDefaultPoints(levelId) }));
+    }
     if (!currQuestions[levelId]) {
       const qs = await fetchCurriculumLevel(levelId);
       setCurrQuestions(prev => ({ ...prev, [levelId]: qs }));
@@ -187,7 +209,7 @@ export default function AdminPanel({ onBack }) {
 
   const openEditModal = (q) => {
     setEditingCurrQ(q);
-    setCurrQForm({ text: q.text, options: [...q.options], correctIndex: q.correctIndex });
+    setCurrQForm({ text: q.text, options: [...q.options], correctIndex: q.correctIndex, hint: q.hint || "" });
     setModalMode("edit");
   };
 
@@ -203,20 +225,26 @@ export default function AdminPanel({ onBack }) {
     if (!currQForm.text.trim() || currQForm.options.some(o => !o.trim())) {
       alert("מלא את כל השדות"); return;
     }
-    if (modalMode === "edit") {
-      await updateDoc(doc(db, "curriculumQuestions", editingCurrQ.id), {
-        text: currQForm.text, options: currQForm.options, correctIndex: currQForm.correctIndex
-      });
-    } else {
-      const existing = currQuestions[currTab] || [];
-      await addDoc(collection(db, "curriculumQuestions"), {
-        text: currQForm.text, options: currQForm.options, correctIndex: currQForm.correctIndex,
-        levelId: currTab, questionIndex: existing.length, createdAt: new Date().toISOString()
-      });
+    try {
+      if (modalMode === "edit") {
+        await updateDoc(doc(db, "curriculumQuestions", editingCurrQ.id), {
+          text: currQForm.text, options: currQForm.options, correctIndex: currQForm.correctIndex, hint: currQForm.hint || ""
+        });
+      } else {
+        const existing = currQuestions[currTab] || [];
+        await addDoc(collection(db, "curriculumQuestions"), {
+          text: currQForm.text, options: currQForm.options, correctIndex: currQForm.correctIndex,
+          hint: currQForm.hint || "",
+          levelId: currTab, questionIndex: existing.length, createdAt: new Date().toISOString()
+        });
+      }
+      const fresh = await fetchCurriculumLevel(currTab);
+      setCurrQuestions(prev => ({ ...prev, [currTab]: fresh }));
+      closeModal();
+    } catch (e) {
+      alert("שגיאה בשמירת השאלה: " + e.message);
+      console.error("saveModal error:", e);
     }
-    const fresh = await fetchCurriculumLevel(currTab);
-    setCurrQuestions(prev => ({ ...prev, [currTab]: fresh }));
-    closeModal();
   };
 
   const deleteCurrQ = (q) => {
@@ -300,6 +328,15 @@ export default function AdminPanel({ onBack }) {
     setConfirmDeleteLevel(null);
   };
 
+  const saveHint = async (q, newHint) => {
+    await updateDoc(doc(db, "curriculumQuestions", q.id), { hint: newHint.trim() });
+    setCurrQuestions(prev => ({
+      ...prev,
+      [q.levelId]: prev[q.levelId].map(item => item.id === q.id ? { ...item, hint: newHint.trim() } : item)
+    }));
+    setEditingHintId(null);
+  };
+
   const toggleSelect = (id) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
@@ -349,7 +386,7 @@ export default function AdminPanel({ onBack }) {
           </div>
         ) : (
           <h2 style={{ margin: 0 }}>
-            {section === "curriculum" ? "📚 תוכנית לימוד" : section === "trash" ? "🗑️ שאלות שנמחקו" : "⚙️ ניהול שאלות"}
+            {section === "curriculum" ? "📚 תוכנית לימוד" : section === "trash" ? "🗑️ שאלות שנמחקו" : section === "stats" ? "📊 סטטיסטיקה" : "⚙️ ניהול מערכת"}
           </h2>
         )}
 
@@ -390,6 +427,15 @@ export default function AdminPanel({ onBack }) {
                 />
               </div>
             ))}
+
+            <label style={{ display: "block", marginTop: "4px", marginBottom: "6px", fontWeight: "bold" }}>💡 רמז לתלמיד (חובה)</label>
+            <textarea
+              value={currQForm.hint}
+              onChange={e => setCurrQForm(f => ({ ...f, hint: e.target.value }))}
+              placeholder="רמז קצר ונכון מתמטית שמכוון לדרך הפתרון..."
+              rows={2}
+              style={{ ...inputStyle, marginBottom: "16px", resize: "vertical", borderColor: currQForm.hint.trim() ? "#34A853" : "#FFA000" }}
+            />
 
             {currQForm.text && (
               <div style={{ background: "#f8f8f8", borderRadius: "8px", padding: "10px", marginBottom: "16px", fontSize: "0.9rem" }}>
@@ -535,6 +581,30 @@ export default function AdminPanel({ onBack }) {
             </svg>
             <span style={{ fontWeight: "700", fontSize: "0.95rem", color: "#333" }}>שאלות שנמחקו</span>
           </button>
+
+          <button onClick={() => setSection("stats")}
+            style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "12px", width: "140px", height: "140px", background: "white", border: "2px solid #e0e0e0", borderRadius: "20px", cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.07)", transition: "box-shadow 0.15s, border-color 0.15s" }}
+            onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 6px 20px rgba(67,160,71,0.18)"; e.currentTarget.style.borderColor = "#43a047"; }}
+            onMouseLeave={e => { e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.07)"; e.currentTarget.style.borderColor = "#e0e0e0"; }}>
+            <svg width="60" height="56" viewBox="0 0 60 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="4" y="36" width="14" height="18" rx="3" fill="url(#bar1g)"/>
+              <rect x="23" y="20" width="14" height="34" rx="3" fill="url(#bar2g)"/>
+              <rect x="42" y="6" width="14" height="48" rx="3" fill="url(#bar3g)"/>
+              <rect x="0" y="53" width="60" height="3" rx="1.5" fill="#e0e0e0"/>
+              <defs>
+                <linearGradient id="bar1g" x1="11" y1="36" x2="11" y2="54" gradientUnits="userSpaceOnUse">
+                  <stop stopColor="#EF9A9A"/><stop offset="1" stopColor="#E53935"/>
+                </linearGradient>
+                <linearGradient id="bar2g" x1="30" y1="20" x2="30" y2="54" gradientUnits="userSpaceOnUse">
+                  <stop stopColor="#FFE082"/><stop offset="1" stopColor="#FFA000"/>
+                </linearGradient>
+                <linearGradient id="bar3g" x1="49" y1="6" x2="49" y2="54" gradientUnits="userSpaceOnUse">
+                  <stop stopColor="#A5D6A7"/><stop offset="1" stopColor="#388E3C"/>
+                </linearGradient>
+              </defs>
+            </svg>
+            <span style={{ fontWeight: "700", fontSize: "0.95rem", color: "#333" }}>סטטיסטיקה</span>
+          </button>
         </div>
       )}
 
@@ -632,6 +702,33 @@ export default function AdminPanel({ onBack }) {
                   {j === q.correctIndex ? "✅" : "○"} <MathText text={opt} />
                 </p>
               ))}
+              {editingHintId === q.id ? (
+                <div style={{ marginTop: "8px" }}>
+                  <textarea
+                    value={editingHintValue}
+                    onChange={e => setEditingHintValue(e.target.value)}
+                    rows={2}
+                    autoFocus
+                    style={{ ...inputStyle, fontSize: "0.85rem", marginBottom: "6px", resize: "vertical" }}
+                  />
+                  <div style={{ display: "flex", gap: "6px" }}>
+                    <button onClick={() => saveHint(q, editingHintValue)} style={smallBtn("#34A853")}>✓ שמור</button>
+                    <button onClick={() => setEditingHintId(null)} style={smallBtn("#999")}>✕ ביטול</button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: "flex", alignItems: "flex-start", gap: "6px", marginTop: "8px" }}>
+                  <div style={{ flex: 1, fontSize: "0.82rem", color: q.hint ? "#E65100" : "#bbb", background: q.hint ? "#FFF9C4" : "#f5f5f5", borderRadius: "6px", padding: "5px 8px" }}>
+                    💡 {q.hint ? <MathText text={q.hint} /> : "אין רמז"}
+                  </div>
+                  {!selectMode && (
+                    <button
+                      onClick={() => { setEditingHintId(q.id); setEditingHintValue(q.hint || ""); }}
+                      style={{ ...smallBtn("#F9A825"), flexShrink: 0 }}
+                    >✏️</button>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -653,7 +750,8 @@ export default function AdminPanel({ onBack }) {
             const isEditingName = editingLevelId === level.id;
             return (
               <div key={level.id}
-                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", marginBottom: "8px", border: "1px solid #e0e0e0", borderRadius: "12px", background: count > 0 ? "#f0faf0" : "#fff" }}>
+                onClick={() => !isEditingName && openCurrLevel(level.id)}
+                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", marginBottom: "8px", border: "1px solid #e0e0e0", borderRadius: "12px", background: count > 0 ? "#f0faf0" : "#fff", cursor: isEditingName ? "default" : "pointer" }}>
 
                 <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
                   <span style={{ fontWeight: "700", color: "#333", flexShrink: 0 }}>רמה {level.id}:</span>
@@ -672,10 +770,7 @@ export default function AdminPanel({ onBack }) {
                     </>
                   ) : (
                     <>
-                      <span
-                        style={{ color: "#555", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}
-                        onClick={() => openCurrLevel(level.id)}
-                      >
+                      <span style={{ color: "#555", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         <MathText text={getLevelTitle(level.id)} />
                       </span>
                       <button
@@ -689,7 +784,7 @@ export default function AdminPanel({ onBack }) {
 
                 {!isEditingName && (
                   <div style={{ display: "flex", alignItems: "center", gap: "10px", flexShrink: 0, marginRight: "8px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }} onClick={() => openCurrLevel(level.id)}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                       <span style={{ background: count > 0 ? "#34A853" : "#ccc", color: "white", borderRadius: "99px", padding: "3px 10px", fontSize: "0.78rem", fontWeight: "700" }}>
                         {count > 0 ? `${count} שאלות` : "ריק"}
                       </span>
@@ -707,6 +802,9 @@ export default function AdminPanel({ onBack }) {
           })}
         </div>
       ) : null}
+
+      {/* Stats section */}
+      {section === "stats" && <StatsDashboard />}
 
       {/* Trash section */}
       {section === "trash" && (

@@ -1,20 +1,24 @@
 import { useState, useEffect } from "react";
 import { auth, db } from "./firebase/config";
 import { onAuthStateChanged, getRedirectResult } from "firebase/auth";
-import { doc, getDoc, getDocs, setDoc, collection } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
-const DEFAULT_LEVELS = [
-  { id: 1, name: "פונקציות רציונליות" },
-  { id: 2, name: "תחום הגדרה עם שורשים" },
-  { id: 3, name: "תחום הגדרה עם לוגריתמים" },
-  { id: 4, name: "תחום הגדרה – תרגול מתקדם" },
-];
-
-async function seedLevelsIfEmpty() {
-  const snap = await getDocs(collection(db, "levels"));
-  if (snap.empty) {
-    await Promise.all(DEFAULT_LEVELS.map(l => setDoc(doc(db, "levels", String(l.id)), l)));
+async function saveUserOnLogin(currentUser) {
+  const ref = doc(db, "users", currentUser.uid);
+  const snap = await getDoc(ref);
+  const now = new Date().toISOString();
+  const data = {
+    uid: currentUser.uid,
+    email: currentUser.email,
+    displayName: currentUser.displayName || "",
+    photoURL: currentUser.photoURL || "",
+    lastSeen: now,
+  };
+  if (!snap.exists()) {
+    data.firstSeen = now;
+    data.role = "student";
   }
+  await setDoc(ref, data, { merge: true });
 }
 import Login from "./components/Login";
 import MainMenu from "./components/MainMenu";
@@ -38,12 +42,12 @@ export default function App() {
   const [totalLevels,     setTotalLevels]     = useState(30);
 
   useEffect(() => {
-    seedLevelsIfEmpty();
     getRedirectResult(auth).catch(console.error);
 
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
+        await saveUserOnLogin(currentUser);
         const snap = await getDoc(doc(db, "users", currentUser.uid));
         if (snap.exists()) setUserStats(snap.data());
       }

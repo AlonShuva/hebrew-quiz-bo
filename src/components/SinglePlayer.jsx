@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { db } from "../firebase/config";
 import { collection, query, where, getDocs, doc, setDoc, increment, getDoc, arrayUnion } from "firebase/firestore";
+import { recordQuestionStat } from "../firebase/questionStats";
 import MathText from "./MathText";
 
 export default function SinglePlayer({ user, onBack, level = 1 }) {
@@ -14,9 +15,9 @@ export default function SinglePlayer({ user, onBack, level = 1 }) {
   useEffect(() => {
     const fetchQuestions = async () => {
       setLoading(true);
-      const q = query(collection(db, "questions"), where("level", "==", level));
+      const q = query(collection(db, "curriculumQuestions"), where("levelId", "==", level));
       const snap = await getDocs(q);
-      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.questionIndex - b.questionIndex);
       setQuestions(data);
       setLoading(false);
     };
@@ -63,6 +64,7 @@ export default function SinglePlayer({ user, onBack, level = 1 }) {
   const handleAnswer = (index) => {
     if (selected !== null) return;
     setSelected(index);
+    recordQuestionStat(questions[current].id, level, index === questions[current].correctIndex, index);
     if (index === questions[current].correctIndex) {
       setScore(prev => prev + level * 10);
     }
@@ -281,7 +283,7 @@ export default function SinglePlayer({ user, onBack, level = 1 }) {
                   fontWeight: "700",
                   flexShrink: 0
                 }}>
-                  {icon || String.fromCharCode(65 + i)}
+                  {icon || ['א','ב','ג','ד'][i]}
                 </div>
                 <MathText text={opt} />
               </button>

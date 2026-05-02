@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Class Diagram — Math Learning App</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #fff; font-family: Arial, sans-serif; padding: 36px; }
+  h2 {
+    text-align: center;
+    margin-bottom: 30px;
+    font-size: 13px;
+    font-weight: bold;
+    color: #333;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+  }
+  .diagram { position: relative; width: 960px; height: 670px; }
+  .entity {
+    position: absolute;
+    border: 2px solid #2e75b6;
+    background: #fff;
+  }
+  .entity-title {
+    background: #5b9bd5;
+    color: #fff;
+    font-weight: bold;
+    text-align: center;
+    padding: 5px 8px;
+    font-size: 13px;
+    letter-spacing: 0.2px;
+  }
+  .entity-attrs { padding: 4px 10px 8px; }
+  .attr { font-size: 11.5px; color: #111; line-height: 1.85; }
+  svg {
+    position: absolute;
+    top: 0; left: 0;
+    overflow: visible;
+    pointer-events: none;
+  }
+  .conn { stroke: #333; stroke-width: 1.5; fill: none; }
+  .lbl  { font-family: Arial; font-size: 12px; font-weight: bold; fill: #222; }
+</style>
+</head>
+<body>
+<h2>Class Diagram — Math Domain-of-Functions Learning App</h2>
+<div class="diagram">
+
+<svg width="960" height="670">
+
+  <!-- 1. Student → UserProgress  (1 : 1  vertical) -->
+  <line class="conn" x1="107" y1="186" x2="107" y2="275"/>
+  <text class="lbl" x="113" y="226">1</text>
+  <text class="lbl" x="113" y="268">1</text>
+
+  <!-- 2. UserProgress → Leaderboard  (1 : 1  vertical) -->
+  <line class="conn" x1="107" y1="422" x2="107" y2="510"/>
+  <text class="lbl" x="113" y="462">1</text>
+  <text class="lbl" x="113" y="503">1</text>
+
+  <!-- 3. Student ↔ CurriculumLevel  (N : N  horizontal) -->
+  <line class="conn" x1="185" y1="123" x2="355" y2="123"/>
+  <text class="lbl" x="189" y="117">N</text>
+  <text class="lbl" x="331" y="117">N</text>
+
+  <!-- 4. CurriculumLevel → CurriculumQuestion  (1 : N  vertical) -->
+  <line class="conn" x1="437" y1="186" x2="437" y2="270"/>
+  <text class="lbl" x="443" y="224">1</text>
+  <text class="lbl" x="443" y="263">N</text>
+
+  <!-- 5. UserProgress → UserDailyProgress  (1 : N  L-route right) -->
+  <polyline class="conn" points="185,348 250,348 250,567 355,567"/>
+  <text class="lbl" x="190" y="343">1</text>
+  <text class="lbl" x="330" y="561">N</text>
+
+  <!-- 6. UserDailyProgress → DailyChallenge  (N : 1  right-up route) -->
+  <polyline class="conn" points="520,567 648,567 648,123 680,123"/>
+  <text class="lbl" x="526" y="561">N</text>
+  <text class="lbl" x="651" y="117">1</text>
+
+  <!-- 7. Student → Achievement  (1 : N  top route) -->
+  <polyline class="conn" points="107,60 107,36 845,36 845,345"/>
+  <text class="lbl" x="113" y="32">1</text>
+  <text class="lbl" x="820" y="340">N</text>
+
+</svg>
+
+<!-- ── Student ────────────────────────── left=30 top=60 w=155 -->
+<div class="entity" style="left:30px;top:60px;width:155px;">
+  <div class="entity-title">Student</div>
+  <div class="entity-attrs">
+    <div class="attr">-StudentID</div>
+    <div class="attr">-DisplayName</div>
+    <div class="attr">-Email</div>
+    <div class="attr">-PhotoURL</div>
+  </div>
+</div>
+
+<!-- ── UserProgress ───────────────────── left=30 top=275 w=155 -->
+<div class="entity" style="left:30px;top:275px;width:155px;">
+  <div class="entity-title">UserProgress</div>
+  <div class="entity-attrs">
+    <div class="attr">-UserID</div>
+    <div class="attr">-CurrentLevel</div>
+    <div class="attr">-TotalPoints</div>
+    <div class="attr">-Lives</div>
+    <div class="attr">-LivesDate</div>
+  </div>
+</div>
+
+<!-- ── Leaderboard ────────────────────── left=30 top=510 w=155 -->
+<div class="entity" style="left:30px;top:510px;width:155px;">
+  <div class="entity-title">Leaderboard</div>
+  <div class="entity-attrs">
+    <div class="attr">-Rank</div>
+    <div class="attr">-StudentID</div>
+    <div class="attr">-TotalPoints</div>
+    <div class="attr">-CurrentLevel</div>
+  </div>
+</div>
+
+<!-- ── CurriculumLevel ────────────────── left=355 top=60 w=165 -->
+<div class="entity" style="left:355px;top:60px;width:165px;">
+  <div class="entity-title">CurriculumLevel</div>
+  <div class="entity-attrs">
+    <div class="attr">-LevelID</div>
+    <div class="attr">-Title</div>
+    <div class="attr">-Hint</div>
+    <div class="attr">-Points</div>
+  </div>
+</div>
+
+<!-- ── CurriculumQuestion ─────────────── left=355 top=270 w=180 -->
+<div class="entity" style="left:355px;top:270px;width:180px;">
+  <div class="entity-title">CurriculumQuestion</div>
+  <div class="entity-attrs">
+    <div class="attr">-QuestionID</div>
+    <div class="attr">-LevelID</div>
+    <div class="attr">-QuestionIndex</div>
+    <div class="attr">-QuestionText</div>
+    <div class="attr">-CorrectIndex</div>
+  </div>
+</div>
+
+<!-- ── UserDailyProgress ──────────────── left=355 top=505 w=165 -->
+<div class="entity" style="left:355px;top:505px;width:165px;">
+  <div class="entity-title">UserDailyProgress</div>
+  <div class="entity-attrs">
+    <div class="attr">-UserID</div>
+    <div class="attr">-Date</div>
+    <div class="attr">-Solved</div>
+    <div class="attr">-Streak</div>
+  </div>
+</div>
+
+<!-- ── DailyChallenge ─────────────────── left=680 top=60 w=170 -->
+<div class="entity" style="left:680px;top:60px;width:170px;">
+  <div class="entity-title">DailyChallenge</div>
+  <div class="entity-attrs">
+    <div class="attr">-ChallengeDate</div>
+    <div class="attr">-QuestionText</div>
+    <div class="attr">-Options[ ]</div>
+    <div class="attr">-CorrectIndex</div>
+  </div>
+</div>
+
+<!-- ── Achievement ───────────────────── left=680 top=345 w=165 -->
+<div class="entity" style="left:680px;top:345px;width:165px;">
+  <div class="entity-title">Achievement</div>
+  <div class="entity-attrs">
+    <div class="attr">-AchievementID</div>
+    <div class="attr">-Name</div>
+    <div class="attr">-Required</div>
+    <div class="attr">-Type</div>
+  </div>
+</div>
+
+</div>
+</body>
+</html>

@@ -17,6 +17,11 @@ export default function AdminGuard({ user, onBack, children }) {
 
   const checkAdmin = async () => {
     if (isSuperAdmin) {
+      await setDoc(doc(db, "admins", user.email.toLowerCase()), {
+        email: user.email,
+        displayName: user.displayName || "",
+        role: "superAdmin",
+      }, { merge: true });
       setIsAdmin(true);
       setLoading(false);
       return;

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>State Machine Diagram — Hebrew Math Learning App</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #e8ecf0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 30px;
+    font-family: Arial, sans-serif;
+  }
+  .wrapper {
+    background: white;
+    border: 1px solid #bbb;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.15);
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+<svg viewBox="0 0 1220 410" width="1220" height="410" xmlns="http://www.w3.org/2000/svg" font-family="Arial, sans-serif">
+
+  <defs>
+    <marker id="arr" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto">
+      <polygon points="0 0, 9 3.5, 0 7" fill="#444"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1220" height="410" fill="white"/>
+
+  <!-- ── Title note (folded corner) ── -->
+  <polygon points="10,10 248,10 262,24 262,56 10,56" fill="#dce9f7" stroke="#6aa3d5" stroke-width="1"/>
+  <polygon points="248,10 262,10 262,24" fill="#aac8e0" stroke="#6aa3d5" stroke-width="1"/>
+  <text x="18" y="28" font-size="10.5" fill="#1a3a5c" font-weight="bold">State Machine Diagram:</text>
+  <text x="18" y="45" font-size="10.5" fill="#1a3a5c">Practicing Questions for High School Students</text>
+
+  <!-- ══════════════ STATES ══════════════ -->
+
+  <!-- Waiting to Start -->
+  <rect x="36" y="176" width="126" height="40" rx="10" fill="#b8d4f0" stroke="#5b9bd5" stroke-width="1.5"/>
+  <text x="99" y="201" text-anchor="middle" font-size="10.5" fill="#1a3a5c">Waiting to Start</text>
+
+  <!-- Selecting a Topic -->
+  <rect x="218" y="176" width="130" height="40" rx="10" fill="#b8d4f0" stroke="#5b9bd5" stroke-width="1.5"/>
+  <text x="283" y="201" text-anchor="middle" font-size="10.5" fill="#1a3a5c">Selecting a Topic</text>
+
+  <!-- Solving a Question -->
+  <rect x="408" y="176" width="140" height="40" rx="10" fill="#b8d4f0" stroke="#5b9bd5" stroke-width="1.5"/>
+  <text x="478" y="201" text-anchor="middle" font-size="10.5" fill="#1a3a5c">Solving a Question</text>
+
+  <!-- Requesting Hint (above Solving) -->
+  <rect x="412" y="50" width="126" height="40" rx="10" fill="#b8d4f0" stroke="#5b9bd5" stroke-width="1.5"/>
+  <text x="475" y="75" text-anchor="middle" font-size="10.5" fill="#1a3a5c">Requesting Hint</text>
+
+  <!-- Submit Answer -->
+  <rect x="610" y="176" width="118" height="40" rx="10" fill="#b8d4f0" stroke="#5b9bd5" stroke-width="1.5"/>
+  <text x="669" y="201" text-anchor="middle" font-size="10.5" fill="#1a3a5c">Submit Answer</text>
+
+  <!-- Receiving Feedback -->
+  <rect x="792" y="176" width="140" height="40" rx="10" fill="#b8d4f0" stroke="#5b9bd5" stroke-width="1.5"/>
+  <text x="862" y="201" text-anchor="middle" font-size="10.5" fill="#1a3a5c">Receiving Feedback</text>
+
+  <!-- Practice Completed -->
+  <rect x="996" y="176" width="142" height="40" rx="10" fill="#b8d4f0" stroke="#5b9bd5" stroke-width="1.5"/>
+  <text x="1067" y="201" text-anchor="middle" font-size="10.5" fill="#1a3a5c">Practice Completed</text>
+
+  <!-- Request Full Solution (below Receiving Feedback) -->
+  <rect x="792" y="316" width="140" height="40" rx="10" fill="#b8d4f0" stroke="#5b9bd5" stroke-width="1.5"/>
+  <text x="862" y="341" text-anchor="middle" font-size="10.5" fill="#1a3a5c">Request Full Solution</text>
+
+  <!-- ══════════════ INITIAL / FINAL ══════════════ -->
+
+  <!-- Initial state: filled circle -->
+  <circle cx="16" cy="196" r="8" fill="#333"/>
+
+  <!-- Final state: double circle -->
+  <circle cx="1202" cy="196" r="10" fill="#333"/>
+  <circle cx="1202" cy="196" r="6" fill="white"/>
+  <circle cx="1202" cy="196" r="3" fill="#333"/>
+
+  <!-- ══════════════ ARROWS ══════════════ -->
+
+  <!-- 1. Initial → Waiting to Start -->
+  <line x1="24" y1="196" x2="35" y2="196" stroke="#444" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- 2. Waiting to Start → Selecting a Topic -->
+  <line x1="162" y1="196" x2="217" y2="196" stroke="#444" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="190" y="166" text-anchor="middle" font-size="9.5" fill="#333">Start Exercise</text>
+
+  <!-- 3. Selecting a Topic → Solving a Question -->
+  <line x1="348" y1="196" x2="407" y2="196" stroke="#444" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="378" y="166" text-anchor="middle" font-size="9.5" fill="#333">Select Topic</text>
+
+  <!-- 4. Solving a Question → Requesting Hint (up, offset left) -->
+  <line x1="454" y1="176" x2="454" y2="91" stroke="#444" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="444" y="136" text-anchor="end" font-size="9.5" fill="#333">Want Hint</text>
+
+  <!-- 5. Requesting Hint → Solving a Question (down, offset right) -->
+  <line x1="494" y1="90" x2="494" y2="175" stroke="#444" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="504" y="116" text-anchor="start" font-size="9.5" fill="#333">Return to Solving</text>
+  <text x="504" y="129" text-anchor="start" font-size="9.5" fill="#333">Question After Hint</text>
+
+  <!-- 6. Solving a Question → Submit Answer -->
+  <line x1="548" y1="196" x2="609" y2="196" stroke="#444" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="579" y="166" text-anchor="middle" font-size="9.5" fill="#333">Ready to Submit Answer</text>
+
+  <!-- 7. Submit Answer → Receiving Feedback -->
+  <line x1="728" y1="196" x2="791" y2="196" stroke="#444" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="760" y="166" text-anchor="middle" font-size="9.5" fill="#333">Receive Feedback</text>
+
+  <!-- 8. Receiving Feedback → Practice Completed -->
+  <line x1="932" y1="196" x2="995" y2="196" stroke="#444" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="964" y="166" text-anchor="middle" font-size="9.5" fill="#333">All Questions Answered</text>
+
+  <!-- 9. Practice Completed → Final state -->
+  <line x1="1138" y1="196" x2="1191" y2="196" stroke="#444" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- 10. Receiving Feedback → Solving a Question (arc below, "Next Question Available") -->
+  <path d="M 828 216 L 828 258 L 466 258 L 466 216" fill="none" stroke="#444" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="647" y="272" text-anchor="middle" font-size="9.5" fill="#333">Next Question Available</text>
+
+  <!-- 11. Receiving Feedback → Request Full Solution (down) -->
+  <line x1="878" y1="216" x2="878" y2="315" stroke="#444" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="892" y="258" text-anchor="start" font-size="9.5" fill="#333">Incorrect Answer,</text>
+  <text x="892" y="271" text-anchor="start" font-size="9.5" fill="#333">Request Solution</text>
+
+  <!-- 12. Request Full Solution → Solving a Question (left then up, "Next Question Available") -->
+  <path d="M 792 336 L 484 336 L 484 216" fill="none" stroke="#444" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="625" y="352" text-anchor="middle" font-size="9.5" fill="#333">Next Question Available</text>
+
+</svg>
+</div>
+</body>
+</html>
