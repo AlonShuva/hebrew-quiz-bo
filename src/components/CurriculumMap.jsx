@@ -277,6 +277,7 @@ export default function CurriculumMap({ user, onSelectLevel, onDailyChallenge, o
   const curPt = getCenter(currentLevel, totalLevels);
 
   const bgStyle = {
+    width: "100%",
     minHeight: "100vh",
     minHeight: "100dvh",
     background: "linear-gradient(180deg, #e8f5e9 0%, #f9fbe7 40%, #e8f5e9 100%)",

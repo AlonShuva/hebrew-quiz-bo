@@ -329,6 +329,7 @@ export default function CurriculumGame({ user, levelId, totalLevels = 30, onBack
 
   return (
     <div style={{
+      width: "100%",
       height: "100vh", height: "100dvh",
       background: "linear-gradient(180deg, #e8f5e9 0%, #f9fbe7 40%, #e8f5e9 100%)",
       display: "flex", flexDirection: "column",
