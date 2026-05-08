@@ -4,6 +4,11 @@
   padding: 0;
 }
 
+/* Fluid base font — scales from 14px (320px screen) to 17px (1280px+ screen) */
+html {
+  font-size: clamp(14px, calc(11px + 0.9375vw), 17px);
+}
+
 :root {
   --primary: #43a047;
   --primary-light: #66bb6a;
@@ -158,6 +163,21 @@ button, input, textarea, select {
 /* Landscape mode — reduce vertical padding */
 @media (orientation: landscape) and (max-height: 500px) {
   .page { padding-top: 12px; padding-bottom: 12px; }
+}
+
+/* Tablet & desktop — give cards and buttons a bit more room */
+@media (min-width: 768px) {
+  .card { padding: 24px 28px; }
+  .btn-primary { padding: 15px 32px; }
+  .btn-back { padding: 11px 22px; }
+}
+
+/* Large desktop — center and cap width */
+@media (min-width: 1024px) {
+  #root {
+    max-width: 800px;
+    margin: 0 auto;
+  }
 }
 
 /* Progress bar */
