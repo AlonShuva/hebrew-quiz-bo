@@ -1,0 +1,81 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper: is the request from a signed-in user?
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    // Helper: is the request from the specific user?
+    function isOwner(uid) {
+      return isAuth() && request.auth.uid == uid;
+    }
+
+    // Helper: is the user an admin?
+    function isAdmin() {
+      return isAuth() && (
+        request.auth.token.email == "alon.shuva1@gmail.com" ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.token.email))
+      );
+    }
+
+    // Users collection
+    match /users/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow write: if isOwner(uid) || isAdmin();
+    }
+
+    // User progress
+    match /userProgress/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow write: if isOwner(uid) || isAdmin();
+    }
+
+    // User daily progress
+    match /userDailyProgress/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow write: if isOwner(uid) || isAdmin();
+    }
+
+    // Curriculum levels — all logged-in users can read, only admins can write
+    match /curriculumLevels/{docId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+
+    // Curriculum questions — all logged-in users can read, only admins can write
+    match /curriculumQuestions/{docId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+
+    // Trashed questions — admins only
+    match /trashedQuestions/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Question stats — all logged-in users can write (record answers), admins can read all
+    match /questionStats/{docId} {
+      allow read: if isAdmin();
+      allow write: if isAuth();
+    }
+
+    // Multiplayer games — any logged-in user can read/write
+    match /games/{gameId} {
+      allow read, write: if isAuth();
+    }
+
+    // Leaderboard — any logged-in user can read, users write their own entry
+    match /leaderboard/{uid} {
+      allow read: if isAuth();
+      allow write: if isOwner(uid) || isAdmin();
+    }
+
+    // Admins collection — only super admin can write, logged-in users can read
+    match /admins/{email} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+  }
+}

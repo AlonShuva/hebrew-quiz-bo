@@ -4,7 +4,7 @@ import { getAuth, GoogleAuthProvider, setPersistence, browserLocalPersistence } 
 
 const firebaseConfig = {
   apiKey: "AIzaSyBM6GNwXdsehT_PEIlAuM-OGlgAERir5m0",
-  authDomain: "hebrew-quiz-bot.firebaseapp.com",
+  authDomain: "hebrew-quiz-bot.web.app",
   projectId: "hebrew-quiz-bot",
   storageBucket: "hebrew-quiz-bot.firebasestorage.app",
   messagingSenderId: "1008178516669",

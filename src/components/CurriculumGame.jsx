@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { db } from "../firebase/config";
-import { doc, getDoc, setDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { doc, getDoc, setDoc, increment, collection, query, where, getDocs } from "firebase/firestore";
 import { recordQuestionStat } from "../firebase/questionStats";
 import MathText from "./MathText";
 import { curriculum } from "../../lib/curriculum.js";
@@ -37,6 +37,7 @@ export default function CurriculumGame({ user, levelId, totalLevels = 30, onBack
   const [successTotal, setSuccessTotal] = useState(0);
   const levelPointsRef = useRef(0);
   const livesRef = useRef(MAX_LIVES);
+  const hadFailedRef = useRef(false);
 
   const loadQuestions = useCallback(async () => {
     setPhase("loading");
@@ -87,10 +88,22 @@ export default function CurriculumGame({ user, levelId, totalLevels = 30, onBack
     setScore(0);
     setHintUsed([]);
     setHintModal(false);
+    hadFailedRef.current = false;
     setPhase("playing");
   }, [levelId, user.uid]);
 
   useEffect(() => { loadQuestions(); }, [loadQuestions]);
+
+  const updateStreak = async () => {
+    const todayVal = today();
+    const dRef = doc(db, "userDailyProgress", user.uid);
+    const dSnap = await getDoc(dRef);
+    const dd = dSnap.exists() ? dSnap.data() : {};
+    if (dd.date === todayVal) return;
+    const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+    const newStreak = dd.date === yesterday ? (dd.streak || 0) + 1 : 1;
+    await setDoc(dRef, { date: todayVal, streak: newStreak, solved: true }, { merge: true });
+  };
 
   const deductLife = async () => {
     const newLives = Math.max(0, livesRef.current - 1);
@@ -128,6 +141,7 @@ export default function CurriculumGame({ user, levelId, totalLevels = 30, onBack
     const isCorrect = selected === questions[current].correctIndex;
 
     if (!isCorrect) {
+      hadFailedRef.current = true;
       if (livesRef.current === 0) {
         setPhase("noLives");
       } else {
@@ -147,6 +161,13 @@ export default function CurriculumGame({ user, levelId, totalLevels = 30, onBack
         const newTotal = (prev.totalPoints || 0) + toAdd;
         const completed = [...new Set([...prevCompleted, Number(levelId)])];
         const nextLevel = Number(levelId) + 1;
+        await updateStreak();
+        const achievementUpdates = {};
+        if (!hadFailedRef.current)       achievementUpdates.perfectLevels    = increment(1);
+        if (!hintUsed.some(Boolean))     achievementUpdates.noHintLevels     = increment(1);
+        if (hadFailedRef.current && !alreadyCompleted) achievementUpdates.retriedAndPassed = increment(1);
+        if (alreadyCompleted)            achievementUpdates.replayedLevels   = increment(1);
+
         await setDoc(ref, {
           completedLevels: completed,
           currentLevel: nextLevel <= totalLevels ? nextLevel : Number(levelId),
@@ -155,6 +176,7 @@ export default function CurriculumGame({ user, levelId, totalLevels = 30, onBack
           displayName: user.displayName || user.email?.split('@')[0] || "שחקן",
           photoURL: user.photoURL || "",
           email: user.email || "",
+          ...achievementUpdates,
         }, { merge: true });
         setSuccessTotal(newTotal);
         setTotalPoints(newTotal);
@@ -182,7 +204,8 @@ export default function CurriculumGame({ user, levelId, totalLevels = 30, onBack
   // ── LOADING ──
   if (phase === "loading") return (
     <div style={centerStyle}>
-      <div style={{ textAlign: "center" }}>
+      <MathFloatsBg />
+      <div style={{ textAlign: "center", position: "relative", zIndex: 1 }}>
         <div style={{ fontSize: "2.5rem", marginBottom: "16px" }}>⏳</div>
         <p style={{ color: "var(--text-secondary)" }}>טוען שאלות...</p>
       </div>
@@ -191,12 +214,13 @@ export default function CurriculumGame({ user, levelId, totalLevels = 30, onBack
 
   // Wrapper for non-playing phases
   const wrap = (content) => (
-    <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", flexDirection: "column", fontFamily: "'Heebo', Arial, sans-serif" }}>
-      <div style={{ padding: "12px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+    <div style={{ minHeight: "100vh", background: "linear-gradient(180deg, #e8f5e9 0%, #f9fbe7 40%, #e8f5e9 100%)", display: "flex", flexDirection: "column", fontFamily: "'Heebo', Arial, sans-serif", position: "relative" }}>
+      <MathFloatsBg />
+      <div style={{ position: "relative", zIndex: 1, padding: "12px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <LivesBar lives={lives} />
         <button onClick={onBack} className="btn-back">← חזור</button>
       </div>
-      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "12px 20px 40px" }}>
+      <div style={{ position: "relative", zIndex: 1, flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "12px 20px 40px" }}>
         {content}
       </div>
     </div>
@@ -295,23 +319,46 @@ export default function CurriculumGame({ user, levelId, totalLevels = 30, onBack
   const progress = (current / questions.length) * 100;
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", flexDirection: "column", alignItems: "center", padding: "24px 20px", fontFamily: "'Heebo', Arial, sans-serif" }}>
+    <div style={{
+      height: "100vh", height: "100dvh",
+      background: "linear-gradient(180deg, #e8f5e9 0%, #f9fbe7 40%, #e8f5e9 100%)",
+      display: "flex", flexDirection: "column",
+      fontFamily: "'Heebo', Arial, sans-serif", position: "relative",
+      overflow: "hidden", boxSizing: "border-box",
+    }}>
+      <MathFloatsBg />
+
+      {/* Header — same as CurriculumMap */}
+      <div style={{
+        flexShrink: 0,
+        background: "rgba(232,245,233,0.92)", backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        borderBottom: "1.5px solid #a5d6a7",
+        padding: "10px 16px",
+        paddingTop: "calc(10px + env(safe-area-inset-top))",
+        display: "flex", justifyContent: "space-between", alignItems: "center",
+        boxShadow: "0 2px 12px rgba(67,160,71,0.12)",
+        position: "relative", zIndex: 10,
+      }}>
+        <button onClick={onBack} style={mapBtn}>← חזור</button>
+        <LivesBar lives={lives} />
+      </div>
 
       {/* Hint popup */}
       {hintModal && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
-          <div className="card popIn" style={{ padding: "32px 28px", maxWidth: "340px", width: "100%", textAlign: "center" }}>
+          <div className="card popIn" style={{ padding: "28px 24px", maxWidth: "340px", width: "100%", textAlign: "center" }}>
             {totalPoints >= hintCost ? (
               <>
-                <div style={{ fontSize: "2.5rem", marginBottom: "12px" }}>💡</div>
-                <h3 style={{ margin: "0 0 8px", fontSize: "1.2rem", color: "var(--text)" }}>השתמש/י ברמז?</h3>
-                <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", marginBottom: "6px" }}>
+                <div style={{ fontSize: "2rem", marginBottom: "10px" }}>💡</div>
+                <h3 style={{ margin: "0 0 6px", fontSize: "1.1rem", color: "var(--text)" }}>השתמש/י ברמז?</h3>
+                <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem", marginBottom: "4px" }}>
                   עלות: <strong style={{ color: "#E65100" }}>{hintCost} נקודות</strong>
                 </p>
-                <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem", marginBottom: "24px" }}>
+                <p style={{ color: "var(--text-secondary)", fontSize: "0.82rem", marginBottom: "20px" }}>
                   נקודות נוכחיות: {totalPoints}
                 </p>
-                <button onClick={confirmHint} className="btn-primary" style={{ width: "100%", marginBottom: "10px", background: "#F9A825", borderColor: "#F9A825" }}>
+                <button onClick={confirmHint} className="btn-primary" style={{ width: "100%", marginBottom: "8px", background: "#F9A825", borderColor: "#F9A825" }}>
                   💡 השתמש ברמז
                 </button>
                 <button onClick={() => setHintModal(false)} style={{ width: "100%", padding: "10px", background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: "0.9rem" }}>
@@ -320,12 +367,12 @@ export default function CurriculumGame({ user, levelId, totalLevels = 30, onBack
               </>
             ) : (
               <>
-                <div style={{ fontSize: "2.5rem", marginBottom: "12px" }}>😔</div>
-                <h3 style={{ margin: "0 0 8px", fontSize: "1.2rem", color: "var(--error)" }}>אין מספיק נקודות</h3>
-                <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", marginBottom: "6px" }}>
+                <div style={{ fontSize: "2rem", marginBottom: "10px" }}>😔</div>
+                <h3 style={{ margin: "0 0 6px", fontSize: "1.1rem", color: "var(--error)" }}>אין מספיק נקודות</h3>
+                <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem", marginBottom: "4px" }}>
                   הרמז עולה <strong>{hintCost} נקודות</strong>
                 </p>
-                <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem", marginBottom: "24px" }}>
+                <p style={{ color: "var(--text-secondary)", fontSize: "0.82rem", marginBottom: "20px" }}>
                   יש לך {totalPoints} נקודות בלבד
                 </p>
                 <button onClick={() => setHintModal(false)} className="btn-primary" style={{ width: "100%" }}>
@@ -337,50 +384,47 @@ export default function CurriculumGame({ user, levelId, totalLevels = 30, onBack
         </div>
       )}
 
-      <div style={{ width: "100%", maxWidth: "560px" }}>
+      <div style={{ width: "100%", flex: 1, display: "flex", flexDirection: "column", alignItems: "center", padding: "10px 16px", paddingBottom: "calc(10px + env(safe-area-inset-bottom))", boxSizing: "border-box", overflow: "hidden" }}>
+      <div style={{ width: "100%", maxWidth: "520px", display: "flex", flexDirection: "column", flex: 1, position: "relative", zIndex: 1 }}>
 
-        {/* Top bar */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <LivesBar lives={lives} />
-            <button onClick={onBack} className="btn-back">← חזור</button>
-          </div>
-          <div style={{ background: "var(--primary-bg)", color: "var(--primary)", borderRadius: "99px", padding: "6px 14px", fontSize: "0.88rem", fontWeight: "700" }}>
+        {/* Level badge */}
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: "8px" }}>
+          <div style={{ background: "var(--primary-bg)", color: "var(--primary)", borderRadius: "99px", padding: "4px 14px", fontSize: "0.82rem", fontWeight: "700" }}>
             רמה {levelId}
           </div>
         </div>
 
         {/* Progress */}
-        <div style={{ marginBottom: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ fontSize: "0.82rem", color: "var(--text-secondary)" }}>שאלה {current + 1} מתוך {questions.length}</span>
-          <span style={{ fontSize: "0.82rem", color: "var(--text-secondary)" }}>חייב לענות נכון על כולן</span>
+        <div style={{ marginBottom: "3px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontSize: "0.76rem", color: "var(--text-secondary)" }}>שאלה {current + 1} מתוך {questions.length}</span>
+          <span style={{ fontSize: "0.76rem", color: "var(--text-secondary)" }}>חייב לענות נכון על כולן</span>
         </div>
-        <div className="progress-bar" style={{ marginBottom: "18px" }}>
+        <div className="progress-bar" style={{ marginBottom: "8px" }}>
           <div className="progress-bar-fill" style={{ width: `${progress}%` }} />
         </div>
 
         {/* Dots */}
-        <div style={{ display: "flex", gap: "8px", justifyContent: "center", marginBottom: "20px" }}>
+        <div style={{ display: "flex", gap: "6px", justifyContent: "center", marginBottom: "10px" }}>
           {questions.map((_, i) => (
             <div key={i} style={{
-              width: "10px", height: "10px", borderRadius: "50%", transition: "background 0.2s",
+              width: "8px", height: "8px", borderRadius: "50%", transition: "background 0.2s",
               background: i < current ? "var(--success)" : i === current ? "var(--primary)" : "var(--border)"
             }} />
           ))}
         </div>
 
         {/* Question card */}
-        <div className="card" style={{ padding: "28px", marginBottom: "16px" }}>
-          <div style={{ display: "inline-block", background: "var(--primary-bg)", color: "var(--primary)", borderRadius: "8px", padding: "4px 12px", fontSize: "0.78rem", fontWeight: "700", marginBottom: "14px" }}>
+        <div className="card" style={{ padding: "16px 20px", marginBottom: "10px" }}>
+          <div style={{ display: "inline-block", background: "var(--primary-bg)", color: "var(--primary)", borderRadius: "8px", padding: "3px 10px", fontSize: "0.72rem", fontWeight: "700", marginBottom: "8px" }}>
             שאלה {current + 1}
           </div>
-          <h2 style={{ fontSize: "1.2rem", lineHeight: "1.7", color: "var(--text)", fontWeight: "600" }}>
+          <h2 style={{ fontSize: "1.05rem", lineHeight: "1.6", color: "var(--text)", fontWeight: "600", margin: 0 }}>
             <MathText text={q.text} />
           </h2>
         </div>
 
         {/* Options */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "16px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "7px", marginBottom: "8px" }}>
           {q.options.map((opt, i) => {
             const isCorrect = i === q.correctIndex;
             const isSelected = i === selected;
@@ -391,9 +435,9 @@ export default function CurriculumGame({ user, levelId, totalLevels = 30, onBack
             }
             return (
               <button key={i} onClick={() => handleAnswer(i)} style={{
-                padding: "14px 18px", fontSize: "1rem", background: bg, border, borderRadius: "var(--radius-sm)",
+                padding: "10px 14px", fontSize: "0.95rem", background: bg, border, borderRadius: "var(--radius-sm)",
                 cursor: selected !== null ? "default" : "pointer", textAlign: "right",
-                display: "flex", alignItems: "center", gap: "12px", transition: "all 0.2s", color,
+                display: "flex", alignItems: "center", gap: "10px", transition: "all 0.2s", color,
                 fontFamily: "inherit", fontWeight: isSelected || (selected !== null && isCorrect) ? "600" : "400",
                 boxShadow: selected === null ? "var(--shadow)" : "none",
               }}
@@ -401,9 +445,9 @@ export default function CurriculumGame({ user, levelId, totalLevels = 30, onBack
                 onMouseLeave={e => { if (selected !== null) return; e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.background = "var(--card)"; }}
               >
                 <div style={{
-                  width: "28px", height: "28px", borderRadius: "8px", flexShrink: 0,
+                  width: "26px", height: "26px", borderRadius: "7px", flexShrink: 0,
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: "0.85rem", fontWeight: "700",
+                  fontSize: "0.82rem", fontWeight: "700",
                   background: selected !== null ? (isCorrect ? "var(--success)" : isSelected ? "var(--error)" : "var(--border)") : "var(--primary-bg)",
                   color: selected !== null ? "white" : "var(--primary)"
                 }}>
@@ -415,20 +459,20 @@ export default function CurriculumGame({ user, levelId, totalLevels = 30, onBack
           })}
         </div>
 
-        {/* Hint — button or revealed text, shown below options */}
+        {/* Hint */}
         {q.hint && (
-          <div style={{ marginBottom: "12px" }}>
+          <div style={{ marginBottom: "8px" }}>
             {hintUsed[current] ? (
-              <div className="fadeIn" style={{ background: "#FFFDE7", border: "1.5px solid #F9A825", borderRadius: "10px", padding: "12px 16px" }}>
-                <span style={{ fontSize: "0.78rem", color: "#E65100", fontWeight: 700 }}>💡 רמז</span>
-                <p style={{ margin: "6px 0 0", color: "#4E342E", lineHeight: 1.6, fontSize: "0.95rem" }}>
+              <div className="fadeIn" style={{ background: "#FFFDE7", border: "1.5px solid #F9A825", borderRadius: "10px", padding: "10px 14px" }}>
+                <span style={{ fontSize: "0.75rem", color: "#E65100", fontWeight: 700 }}>💡 רמז</span>
+                <p style={{ margin: "4px 0 0", color: "#4E342E", lineHeight: 1.5, fontSize: "0.88rem" }}>
                   <MathText text={q.hint} />
                 </p>
               </div>
             ) : selected === null ? (
               <button onClick={() => setHintModal(true)} style={{
-                width: "100%", padding: "11px 16px", background: "#FFFDE7", border: "1.5px solid #F9A825",
-                borderRadius: "10px", cursor: "pointer", fontSize: "0.88rem", fontWeight: 700,
+                width: "100%", padding: "9px 14px", background: "#FFFDE7", border: "1.5px solid #F9A825",
+                borderRadius: "10px", cursor: "pointer", fontSize: "0.85rem", fontWeight: 700,
                 color: "#E65100", textAlign: "center", fontFamily: "inherit",
               }}>
                 💡 רמז
@@ -439,8 +483,8 @@ export default function CurriculumGame({ user, levelId, totalLevels = 30, onBack
 
         {/* Feedback */}
         {selected !== null && (
-          <div className="card fadeIn" style={{ padding: "20px", textAlign: "center" }}>
-            <p style={{ fontWeight: "700", fontSize: "1.1rem", color: selected === q.correctIndex ? "var(--success)" : "var(--error)", marginBottom: "16px" }}>
+          <div className="card fadeIn" style={{ padding: "14px 20px", textAlign: "center" }}>
+            <p style={{ fontWeight: "700", fontSize: "1rem", color: selected === q.correctIndex ? "var(--success)" : "var(--error)", marginBottom: "12px" }}>
               {selected === q.correctIndex ? "✓ נכון! המשך" : `✗ לא נכון — נשאר ${lives} ❤️`}
             </p>
             <button onClick={handleNext} className="btn-primary" style={{ minWidth: "160px" }}>
@@ -449,8 +493,68 @@ export default function CurriculumGame({ user, levelId, totalLevels = 30, onBack
           </div>
         )}
       </div>
+      </div>
     </div>
   );
 }
 
-const centerStyle = { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", padding: "20px", background: "var(--bg)" };
+const mapBtn = {
+  background: "linear-gradient(160deg,#43a047,#2e7d32)",
+  color: "#fff",
+  border: "none",
+  borderRadius: 10,
+  padding: "8px 16px",
+  cursor: "pointer",
+  fontWeight: 800,
+  fontSize: "0.85rem",
+  boxShadow: "0 2px 8px rgba(46,125,50,0.25), 0 2px 0 #1b5e20",
+};
+
+const centerStyle = { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", padding: "20px", background: "linear-gradient(180deg, #e8f5e9 0%, #f9fbe7 40%, #e8f5e9 100%)", position: "relative" };
+
+const MATH_EXPRS = [
+  "f(x)=√x", "x≠0", "x≥0", "1/x", "log(x)", "x²+1",
+  "√(x+1)", "x>0", "x∈ℝ", "f(x)=|x|", "ln(x)", "x≤5",
+  "∛x", "x²-4", "1/(x-1)", "√(1-x)", "x≠±2", "log₂(x)",
+  "f(x)=x³", "x+y=1", "√x·ln(x)", "1/√x", "x∈(0,∞)",
+];
+const mathFloats = Array.from({ length: 30 }, (_, i) => ({
+  x: `${(i * 41.3 + 5) % 100}%`,
+  y: `${(i * 57.1 + 9) % 100}%`,
+  text: MATH_EXPRS[i % MATH_EXPRS.length],
+  size: `${0.85 + (i % 4) * 0.18}rem`,
+  o: 0.22 + (i % 5) * 0.08,
+  d: 3 + (i % 4),
+  delay: (i % 7) * 0.6,
+  rot: (i % 3 === 0 ? -8 : i % 3 === 1 ? 6 : -3),
+}));
+
+const floatStyle = `
+  @keyframes floatEq {
+    0%   { transform: translateY(0px) rotate(var(--r)); opacity: calc(var(--o) * 0.3); }
+    40%  { transform: translateY(-20px) rotate(var(--r)); opacity: var(--o); }
+    100% { transform: translateY(0px) rotate(var(--r)); opacity: calc(var(--o) * 0.3); }
+  }
+`;
+
+function MathFloatsBg() {
+  return (
+    <>
+      <style>{floatStyle}</style>
+      <div style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none", overflow: "hidden" }}>
+        {mathFloats.map((m, i) => (
+          <div key={i} style={{
+            position: "absolute", left: m.x, top: m.y,
+            fontSize: m.size, fontWeight: 700, color: "#43a047",
+            opacity: m.o, userSelect: "none",
+            fontFamily: "'Heebo', Arial, sans-serif",
+            animation: `floatEq ${m.d}s ease-in-out infinite`,
+            animationDelay: `${m.delay}s`,
+            "--r": `${m.rot}deg`,
+            "--o": m.o,
+          }}>{m.text}</div>
+        ))}
+      </div>
+    </>
+  );
+}

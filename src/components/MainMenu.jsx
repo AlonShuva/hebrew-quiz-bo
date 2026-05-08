@@ -1,4 +1,9 @@
-import { auth } from "../firebase/config";
+import { useState, useEffect } from "react";
+import { auth, db } from "../firebase/config";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+
+const MAX_LIVES = 5;
+const todayStr = () => new Date().toISOString().split("T")[0];
 
 const MENU_ITEMS = [
   { key: "curriculumMap", icon: "⚔️", label: "התחל/י ללמוד",  desc: "30 רמות מאפס עד בגרות + אתגר יומי", highlight: true },
@@ -9,13 +14,40 @@ const MENU_ITEMS = [
 ];
 
 export default function MainMenu({ user, onNavigate }) {
+  const [streak, setStreak] = useState(0);
+  const [lives, setLives] = useState(MAX_LIVES);
+
+  useEffect(() => {
+    (async () => {
+      const [pSnap, dSnap] = await Promise.all([
+        getDoc(doc(db, "userProgress", user.uid)),
+        getDoc(doc(db, "userDailyProgress", user.uid)),
+      ]);
+      if (pSnap.exists()) {
+        const p = pSnap.data();
+        if (p.livesDate !== todayStr()) {
+          setLives(MAX_LIVES);
+          setDoc(doc(db, "userProgress", user.uid), { lives: MAX_LIVES, livesDate: todayStr() }, { merge: true });
+        } else {
+          setLives(p.lives ?? MAX_LIVES);
+        }
+      }
+      if (dSnap.exists()) {
+        setStreak(dSnap.data().streak || 0);
+      }
+    })();
+  }, [user.uid]);
+
   return (
     <div style={{
       minHeight: "100vh",
+      minHeight: "100dvh",
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
       padding: "40px 20px 60px",
+      paddingTop: "calc(40px + env(safe-area-inset-top))",
+      paddingBottom: "calc(60px + env(safe-area-inset-bottom))",
       fontFamily: "'Heebo', Arial, sans-serif",
     }}>
 
@@ -34,9 +66,35 @@ export default function MainMenu({ user, onNavigate }) {
           }}>
             למידת מתמטיקה
           </h1>
-          <p style={{ fontSize: "0.82rem", color: "rgba(255,255,255,0.75)" }}>
+          <p style={{ fontSize: "0.82rem", color: "rgba(255,255,255,0.75)", marginBottom: 8 }}>
             תחום הגדרה — מאפס עד בגרות
           </p>
+
+          {/* Streak + Lives */}
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            {/* Streak */}
+            <div style={{
+              display: "flex", alignItems: "center", gap: 5,
+              background: streak > 0 ? "rgba(255,152,0,0.22)" : "rgba(255,255,255,0.1)",
+              border: streak > 0 ? "1.5px solid rgba(255,152,0,0.5)" : "1.5px solid rgba(255,255,255,0.2)",
+              borderRadius: 99, padding: "4px 12px",
+            }}>
+              <span style={{ fontSize: "1.15rem", filter: streak === 0 ? "grayscale(1) opacity(0.5)" : "none" }}>🔥</span>
+              <span style={{ fontWeight: 800, fontSize: "0.95rem", color: streak > 0 ? "#FFB300" : "rgba(255,255,255,0.5)" }}>
+                {streak}
+              </span>
+            </div>
+
+            {/* Lives */}
+            <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+              {Array.from({ length: MAX_LIVES }, (_, i) => (
+                <span key={i} style={{
+                  fontSize: "1rem",
+                  filter: i < lives ? "none" : "grayscale(1) opacity(0.3)",
+                }}>❤️</span>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Avatar */}

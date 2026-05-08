@@ -46,16 +46,24 @@ export default function AdminPanel({ onBack }) {
   // Level delete confirm
   const [confirmDeleteLevel, setConfirmDeleteLevel] = useState(null); // level id | null
 
-  // Multi-select delete
+  // Multi-select delete (questions)
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [confirmDelete, setConfirmDelete] = useState(null); // null | { ids: Set, single: bool }
+
+  // Multi-select delete (levels)
+  const [deletedLevelIds, setDeletedLevelIds] = useState(new Set());
+  const [levelSelectMode, setLevelSelectMode] = useState(false);
+  const [selectedLevelIds, setSelectedLevelIds] = useState(new Set());
+  const [confirmDeleteLevels, setConfirmDeleteLevels] = useState(false);
 
   // Trash
   const [trashedQuestions, setTrashedQuestions] = useState({});
   const [trashLoading, setTrashLoading] = useState(false);
 
-  const allLevels = [...curriculum, ...customLevels].sort((a, b) => a.id - b.id);
+  const allLevels = [...curriculum, ...customLevels]
+    .filter(l => !deletedLevelIds.has(l.id))
+    .sort((a, b) => a.id - b.id);
 
   useEffect(() => {
     fetchAllCurriculumCounts();
@@ -315,17 +323,43 @@ export default function AdminPanel({ onBack }) {
 
   const deleteLevel = async (levelId) => {
     const batch = writeBatch(db);
-    // delete all questions for this level
     const qSnap = await getDocs(query(collection(db, "curriculumQuestions"), where("levelId", "==", levelId)));
     qSnap.docs.forEach(d => batch.delete(doc(db, "curriculumQuestions", d.id)));
-    // delete level doc if it exists
-    const lvlSnap = await getDocs(query(collection(db, "curriculumLevels"), where("id", "==", levelId)));
-    lvlSnap.docs.forEach(d => batch.delete(doc(db, "curriculumLevels", d.id)));
+    const isCustom = customLevels.some(l => l.id === levelId);
+    if (isCustom) {
+      batch.delete(doc(db, "curriculumLevels", String(levelId)));
+    } else {
+      batch.set(doc(db, "curriculumLevels", String(levelId)), { id: levelId, deleted: true }, { merge: true });
+    }
     await batch.commit();
     setCustomLevels(prev => prev.filter(l => l.id !== levelId));
+    setDeletedLevelIds(prev => new Set([...prev, levelId]));
     setLevelNames(prev => { const n = { ...prev }; delete n[levelId]; return n; });
     setCurrQuestions(prev => { const q = { ...prev }; delete q[levelId]; return q; });
     setConfirmDeleteLevel(null);
+  };
+
+  const deleteSelectedLevels = async () => {
+    const ids = [...selectedLevelIds];
+    const batch = writeBatch(db);
+    for (const levelId of ids) {
+      const qSnap = await getDocs(query(collection(db, "curriculumQuestions"), where("levelId", "==", levelId)));
+      qSnap.docs.forEach(d => batch.delete(doc(db, "curriculumQuestions", d.id)));
+      const isCustom = customLevels.some(l => l.id === levelId);
+      if (isCustom) {
+        batch.delete(doc(db, "curriculumLevels", String(levelId)));
+      } else {
+        batch.set(doc(db, "curriculumLevels", String(levelId)), { id: levelId, deleted: true }, { merge: true });
+      }
+    }
+    await batch.commit();
+    setCustomLevels(prev => prev.filter(l => !selectedLevelIds.has(l.id)));
+    setDeletedLevelIds(prev => new Set([...prev, ...ids]));
+    setLevelNames(prev => { const n = { ...prev }; ids.forEach(id => delete n[id]); return n; });
+    setCurrQuestions(prev => { const q = { ...prev }; ids.forEach(id => delete q[id]); return q; });
+    setSelectedLevelIds(new Set());
+    setLevelSelectMode(false);
+    setConfirmDeleteLevels(false);
   };
 
   const saveHint = async (q, newHint) => {
@@ -510,6 +544,27 @@ export default function AdminPanel({ onBack }) {
                 מחק
               </button>
               <button onClick={() => setConfirmDelete(null)}
+                style={{ flex: 1, padding: "11px", background: "#f0f0f0", border: "none", borderRadius: "8px", cursor: "pointer" }}>
+                ביטול
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm delete multiple levels modal */}
+      {confirmDeleteLevels && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+          <div style={{ background: "white", borderRadius: "16px", padding: "28px 24px", width: "100%", maxWidth: "360px", textAlign: "center", boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
+            <div style={{ fontSize: "2.2rem", marginBottom: "12px" }}>🗑️</div>
+            <h3 style={{ margin: "0 0 10px", fontSize: "1.1rem", color: "#111" }}>למחוק {selectedLevelIds.size} רמות?</h3>
+            <p style={{ margin: "0 0 22px", color: "#888", fontSize: "0.9rem" }}>כל השאלות של הרמות הנבחרות יימחקו לצמיתות</p>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button onClick={deleteSelectedLevels}
+                style={{ flex: 1, padding: "11px", background: "#EA4335", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "bold" }}>
+                מחק
+              </button>
+              <button onClick={() => setConfirmDeleteLevels(false)}
                 style={{ flex: 1, padding: "11px", background: "#f0f0f0", border: "none", borderRadius: "8px", cursor: "pointer" }}>
                 ביטול
               </button>
@@ -735,25 +790,64 @@ export default function AdminPanel({ onBack }) {
       ) : section === "curriculum" ? (
         /* Level list */
         <div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-            <p style={{ margin: 0, color: "#666", fontSize: "0.9rem" }}>
-              {currLoading ? "טוען..." : `${Object.values(currQuestions).flat().length} שאלות בסה"כ`}
-            </p>
-            <button onClick={addLevel}
-              style={{ padding: "10px 16px", background: "#4285F4", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "bold", fontSize: "0.85rem" }}>
-              ➕ הוסף רמה
-            </button>
-          </div>
+          {levelSelectMode ? (
+            <div style={{ display: "flex", gap: "10px", marginBottom: "16px", alignItems: "center" }}>
+              <button onClick={() => selectedLevelIds.size > 0 && setConfirmDeleteLevels(true)}
+                disabled={selectedLevelIds.size === 0}
+                style={{ flex: 1, padding: "11px", background: selectedLevelIds.size === 0 ? "#ccc" : "#EA4335", color: "white", border: "none", borderRadius: "10px", cursor: selectedLevelIds.size === 0 ? "default" : "pointer", fontWeight: "bold" }}>
+                🗑️ מחק {selectedLevelIds.size > 0 ? `(${selectedLevelIds.size})` : ""}
+              </button>
+              <button onClick={() => {
+                setSelectedLevelIds(selectedLevelIds.size === allLevels.length ? new Set() : new Set(allLevels.map(l => l.id)));
+              }}
+                style={{ padding: "11px 16px", background: "#f0f0f0", border: "1px solid #ddd", borderRadius: "10px", cursor: "pointer", fontWeight: "bold" }}>
+                {selectedLevelIds.size === allLevels.length ? "בטל הכל" : "בחר הכל"}
+              </button>
+              <button onClick={() => { setLevelSelectMode(false); setSelectedLevelIds(new Set()); }}
+                style={{ padding: "11px 16px", background: "#f0f0f0", border: "1px solid #ddd", borderRadius: "10px", cursor: "pointer" }}>
+                ביטול
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <p style={{ margin: 0, color: "#666", fontSize: "0.9rem" }}>
+                {currLoading ? "טוען..." : `${Object.values(currQuestions).flat().length} שאלות בסה"כ`}
+              </p>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button onClick={() => setLevelSelectMode(true)}
+                  style={{ padding: "10px 14px", background: "#FF5722", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "bold", fontSize: "0.85rem" }}>
+                  ☑️ בחר
+                </button>
+                <button onClick={addLevel}
+                  style={{ padding: "10px 16px", background: "#4285F4", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "bold", fontSize: "0.85rem" }}>
+                  ➕ הוסף רמה
+                </button>
+              </div>
+            </div>
+          )}
 
           {allLevels.map(level => {
             const count = (currQuestions[level.id] || []).length;
             const isEditingName = editingLevelId === level.id;
+            const isLevelSelected = selectedLevelIds.has(level.id);
             return (
               <div key={level.id}
-                onClick={() => !isEditingName && openCurrLevel(level.id)}
-                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", marginBottom: "8px", border: "1px solid #e0e0e0", borderRadius: "12px", background: count > 0 ? "#f0faf0" : "#fff", cursor: isEditingName ? "default" : "pointer" }}>
+                onClick={() => {
+                  if (levelSelectMode) {
+                    setSelectedLevelIds(prev => { const n = new Set(prev); n.has(level.id) ? n.delete(level.id) : n.add(level.id); return n; });
+                  } else if (!isEditingName) {
+                    openCurrLevel(level.id);
+                  }
+                }}
+                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", marginBottom: "8px", border: `1px solid ${levelSelectMode && isLevelSelected ? "#EA4335" : "#e0e0e0"}`, borderRadius: "12px", background: levelSelectMode && isLevelSelected ? "#fff5f5" : count > 0 ? "#f0faf0" : "#fff", cursor: isEditingName ? "default" : "pointer", transition: "border-color 0.15s, background 0.15s" }}>
 
                 <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
+                  {levelSelectMode && (
+                    <input type="checkbox" checked={isLevelSelected}
+                      onChange={() => setSelectedLevelIds(prev => { const n = new Set(prev); n.has(level.id) ? n.delete(level.id) : n.add(level.id); return n; })}
+                      onClick={e => e.stopPropagation()}
+                      style={{ width: 18, height: 18, cursor: "pointer", accentColor: "#EA4335", flexShrink: 0 }} />
+                  )}
                   <span style={{ fontWeight: "700", color: "#333", flexShrink: 0 }}>רמה {level.id}:</span>
                   {isEditingName ? (
                     <>
@@ -789,12 +883,14 @@ export default function AdminPanel({ onBack }) {
                         {count > 0 ? `${count} שאלות` : "ריק"}
                       </span>
                       {seedingLevel === level.id && <span style={{ fontSize: "0.8rem", color: "#9C27B0" }}>⏳</span>}
-                      <span style={{ color: "#aaa" }}>›</span>
+                      {!levelSelectMode && <span style={{ color: "#aaa" }}>›</span>}
                     </div>
-                    <button
-                      onClick={e => { e.stopPropagation(); setConfirmDeleteLevel(level.id); }}
-                      style={{ padding: "4px 8px", background: "#EA4335", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "0.78rem", fontWeight: "700" }}
-                    >🗑️</button>
+                    {!levelSelectMode && (
+                      <button
+                        onClick={e => { e.stopPropagation(); setConfirmDeleteLevel(level.id); }}
+                        style={{ padding: "4px 8px", background: "#EA4335", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "0.78rem", fontWeight: "700" }}
+                      >🗑️</button>
+                    )}
                   </div>
                 )}
               </div>

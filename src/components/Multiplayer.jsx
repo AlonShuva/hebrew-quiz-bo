@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { db } from "../firebase/config";
-import { doc, setDoc, onSnapshot, updateDoc, collection, getDocs, query, getDoc } from "firebase/firestore";
+import { doc, setDoc, onSnapshot, updateDoc, collection, getDocs, query, getDoc, increment } from "firebase/firestore";
 import { recordQuestionStat } from "../firebase/questionStats";
 import MathText from "./MathText";
 
@@ -12,6 +12,7 @@ export default function Multiplayer({ user, onBack }) {
   const [questions, setQuestions] = useState([]);
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState(null);
+  const savedResultRef = useRef(false);
 
   const createGame = async () => {
     try {
@@ -201,6 +202,16 @@ export default function Multiplayer({ user, onBack }) {
   if (screen === "finished" && game) {
     const sorted = Object.entries(game.players).sort((a, b) => b[1].score - a[1].score);
     const winner = sorted[0];
+
+    if (!savedResultRef.current) {
+      savedResultRef.current = true;
+      const isWinner = sorted.length > 1 && winner[0] === user.uid && winner[1].score > sorted[1][1].score;
+      const progressRef = doc(db, "userProgress", user.uid);
+      updateDoc(progressRef, {
+        multiplayerGames: increment(1),
+        ...(isWinner ? { multiplayerWins: increment(1) } : {}),
+      }).catch(() => {});
+    }
     return (
       <div style={centerStyle}>
         <h1>🏆 המשחק נגמר!</h1>

@@ -1,29 +1,39 @@
+import { useState } from "react";
 import { auth, googleProvider } from "../firebase/config";
 import { signInWithPopup, signInWithRedirect } from "firebase/auth";
 
 export default function Login() {
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+
   const handleLogin = async () => {
+    setError(null);
+    setLoading(true);
     try {
-      const isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
       if (isMobile) {
         await signInWithRedirect(auth, googleProvider);
       } else {
         await signInWithPopup(auth, googleProvider);
       }
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      setError(err.code + ": " + err.message);
+      setLoading(false);
     }
   };
 
   return (
     <div style={{
       minHeight: "100vh",
+      minHeight: "100dvh",
       display: "flex", flexDirection: "column",
       alignItems: "center", justifyContent: "center",
       padding: "30px 20px",
+      paddingTop: "calc(30px + env(safe-area-inset-top))",
+      paddingBottom: "calc(30px + env(safe-area-inset-bottom))",
     }}>
       <div className="card" style={{
-        padding: "48px 40px",
+        padding: "40px 24px",
         width: "100%", maxWidth: 400,
         textAlign: "center",
       }}>
@@ -57,7 +67,13 @@ export default function Login() {
           ))}
         </div>
 
-        <button onClick={handleLogin} className="btn-primary" style={{ width: "100%", padding: "14px" }}>
+        {error && (
+          <div style={{ background: "#fce8e6", border: "1px solid #EA4335", borderRadius: 10, padding: "10px 14px", marginBottom: 16, fontSize: "0.78rem", color: "#c62828", textAlign: "right", wordBreak: "break-word" }}>
+            ❌ {error}
+          </div>
+        )}
+
+        <button onClick={handleLogin} disabled={loading} className="btn-primary" style={{ width: "100%", padding: "14px", opacity: loading ? 0.7 : 1 }}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
             <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>

@@ -1,24 +1,15 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { db, SUPER_ADMIN_EMAIL } from "../firebase/config";
 import { doc, getDoc, collection, getDocs } from "firebase/firestore";
 import { curriculum } from "../../lib/curriculum.js";
 import MathText from "./MathText";
 
-// ── Tier colours (MapleStory-inspired: jewel tones) ──────────
-const TIERS = [
-  { main: "#3b82f6", dark: "#1d4ed8", glow: "rgba(59,130,246,0.6)"  },
-  { main: "#3b82f6", dark: "#1d4ed8", glow: "rgba(59,130,246,0.6)"  },
-  { main: "#3b82f6", dark: "#1d4ed8", glow: "rgba(59,130,246,0.6)"  },
-  { main: "#3b82f6", dark: "#1d4ed8", glow: "rgba(59,130,246,0.6)"  },
-  { main: "#3b82f6", dark: "#1d4ed8", glow: "rgba(59,130,246,0.6)"  },
-  { main: "#3b82f6", dark: "#1d4ed8", glow: "rgba(59,130,246,0.6)"  },
-];
-function getTier(id) { return TIERS[Math.floor((id - 1) / 5) % TIERS.length]; }
+function getTier() { return { main: "#43a047", dark: "#2e7d32", glow: "rgba(67,160,71,0.5)" }; }
 
-// ── Layout (simple sine-wave winding path) ────────────────────
+// ── Layout ────────────────────────────────────────────────────
 const SVG_W         = 340;
-const NODE_R        = 28;
-const LEVEL_SPACING = 96;
+const NODE_R        = 38;
+const LEVEL_SPACING = 130;
 const PAD_BOTTOM    = 90;
 const PAD_TOP       = 70;
 
@@ -34,139 +25,174 @@ function getCenter(id, totalLevels) {
   return { x: Math.round(x), y: Math.round(y) };
 }
 
-// ── Glowing road path ─────────────────────────────────────────
+// ── Edge point: from 'a' toward 'b', stopping 'dist' from 'a' ─
+function edgePt(a, b, dist) {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const len = Math.sqrt(dx * dx + dy * dy) || 1;
+  return { x: Math.round(a.x + (dx / len) * dist), y: Math.round(a.y + (dy / len) * dist) };
+}
+
+// ── Clean road path ───────────────────────────────────────────
 function RoadPath({ completedLevels, totalLevels }) {
   const segs = [];
+  const GAP = NODE_R + 6;
   for (let i = 1; i < totalLevels; i++) {
     const a    = getCenter(i, totalLevels);
     const b    = getCenter(i + 1, totalLevels);
     const done = completedLevels.includes(i);
-    const mx   = (a.x + b.x) / 2;
-    const my   = (a.y + b.y) / 2;
-    const d    = `M ${a.x} ${a.y} Q ${mx} ${my} ${b.x} ${b.y}`;
+    const p1   = edgePt(a, b, GAP);
+    const p2   = edgePt(b, a, GAP);
+    const mx   = (p1.x + p2.x) / 2;
+    const my   = (p1.y + p2.y) / 2;
+    const d    = `M ${p1.x} ${p1.y} Q ${mx} ${my} ${p2.x} ${p2.y}`;
+    const road = done ? "#7cb342" : "#b0bec5";
     segs.push(
-      // outer glow
-      <path key={`g-${i}`} d={d} stroke={done ? "rgba(250,204,21,0.25)" : "rgba(99,102,241,0.2)"}
-        strokeWidth={28} fill="none" strokeLinecap="round" />,
-      // base road
-      <path key={`b-${i}`} d={d} stroke={done ? "#78350f" : "#1e1b4b"}
-        strokeWidth={16} fill="none" strokeLinecap="round" />,
-      // centre stripe
-      <path key={`c-${i}`} d={d} stroke={done ? "#94a3b8" : "#4338ca"}
-        strokeWidth={7} fill="none" strokeLinecap="round" opacity={0.85} />,
-      // sparkle dashes
-      <path key={`d-${i}`} d={d}
-        stroke={done ? "rgba(255,255,255,0.55)" : "rgba(167,139,250,0.4)"}
-        strokeWidth={3} fill="none" strokeLinecap="round"
-        strokeDasharray="10 14" />,
+      <path key={`sh-${i}`} d={d} stroke="rgba(0,0,0,0.08)" strokeWidth={15} fill="none" strokeLinecap="round" />,
+      <path key={`rd-${i}`} d={d} stroke={road}              strokeWidth={10} fill="none" strokeLinecap="round" />,
+      <path key={`hi-${i}`} d={d} stroke="rgba(255,255,255,0.55)" strokeWidth={3} fill="none" strokeLinecap="round" strokeDasharray="6 10" />,
     );
   }
   return <>{segs}</>;
 }
 
-// ── Portal node ───────────────────────────────────────────────
+// ── Level node ────────────────────────────────────────────────
 function LevelNode({ level, status, onClick, totalLevels }) {
   const { x, y } = getCenter(level.id, totalLevels);
-  const tier      = getTier(level.id);
   const isDone    = status === "completed";
   const isCurrent = status === "current";
   const isLocked  = status === "locked";
-
-  const r         = isCurrent ? NODE_R + 8 : NODE_R;
-  const portalColor = isDone    ? "#94a3b8"
-                    : isLocked  ? "#374151"
-                    : isCurrent ? tier.main
-                    :             tier.main;
-  const rimColor    = isDone    ? "#92400e"
-                    : isLocked  ? "#1f2937"
-                    : isCurrent ? tier.dark
-                    :             tier.dark;
-  const glowColor   = isDone    ? "rgba(250,204,21,0.7)"
-                    : isLocked  ? "transparent"
-                    : isCurrent ? tier.glow
-                    :             tier.glow.replace("0.6","0.35");
+  const r         = NODE_R;
+  const imgHalf   = r * 1.25; // slightly larger than clip to crop white border
 
   return (
     <g onClick={() => !isLocked && onClick(level.id)}
        style={{ cursor: isLocked ? "not-allowed" : "pointer" }}>
 
-      {/* Outer glow halo */}
-      {!isLocked && (
-        <circle cx={x} cy={y} r={r + 14} fill={glowColor} opacity={isCurrent ? 1 : 0.5}>
-          {isCurrent && (
-            <animate attributeName="r"       values={`${r+10};${r+22};${r+10}`} dur="2s" repeatCount="indefinite" />
-          )}
-          {isCurrent && (
-            <animate attributeName="opacity" values="0.8;0.2;0.8"               dur="2s" repeatCount="indefinite" />
-          )}
+      {/* Subtle pulse ring — current level only */}
+      {isCurrent && (
+        <circle cx={x} cy={y} r={r + 10} fill="none" stroke="#66bb6a" strokeWidth={2} opacity={0.3}>
+          <animate attributeName="r"       values={`${r+8};${r+20};${r+8}`} dur="2.2s" repeatCount="indefinite" />
+          <animate attributeName="opacity" values="0.3;0;0.3"               dur="2.2s" repeatCount="indefinite" />
         </circle>
       )}
 
       <g>
         {isCurrent && (
           <animateTransform attributeName="transform" type="translate"
-            values="0,0;0,-6;0,0" dur="1.8s" repeatCount="indefinite" additive="sum" />
+            values="0,0;0,-5;0,0" dur="2s" repeatCount="indefinite" additive="sum" />
         )}
 
-        {/* Drop shadow */}
-        <circle cx={x} cy={y + 6} r={r + 3} fill="rgba(0,0,0,0.5)" />
+        {/* Soft drop shadow */}
+        <circle cx={x} cy={y + 5} r={r} fill="rgba(0,0,0,0.1)" />
 
-        {/* Gold/dark outer ring */}
-        <circle cx={x} cy={y} r={r + 3} fill={rimColor}
-          stroke={isDone ? "#fbbf24" : isLocked ? "#374151" : tier.main}
-          strokeWidth={2} opacity={isLocked ? 0.5 : 1} />
-
-        {/* Portal body */}
-        <defs>
-          <radialGradient id={`pg-${level.id}`} cx="38%" cy="32%" r="70%">
-            <stop offset="0%" stopColor={isLocked ? "#4b5563" : "#ffffff"} stopOpacity={isLocked ? 0.3 : 0.25} />
-            <stop offset="100%" stopColor={portalColor} />
-          </radialGradient>
-        </defs>
-        <circle cx={x} cy={y} r={r + 1} fill={`url(#pg-${level.id})`} opacity={isLocked ? 0.45 : 1} />
-
-        {/* Inner shine ring */}
-        {!isLocked && (
-          <circle cx={x} cy={y} r={r - 4} fill="none"
-            stroke="rgba(255,255,255,0.3)" strokeWidth={2} />
+        {isLocked ? (
+          <>
+            <circle cx={x} cy={y} r={r} fill="#e5e7eb" stroke="#d1d5db" strokeWidth={2} />
+            <text x={x} y={y + 1} textAnchor="middle" dominantBaseline="middle"
+              fontSize={15} style={{ userSelect: "none" }}>🔒</text>
+            <text x={x} y={y + r + 14} textAnchor="middle" fontSize={9} fill="#9ca3af"
+              fontWeight="600" style={{ userSelect: "none" }}>{level.id}</text>
+          </>
+        ) : (
+          <>
+            <defs>
+              <clipPath id={`clip-${level.id}`}>
+                <circle cx={x} cy={y} r={r} />
+              </clipPath>
+            </defs>
+            <image
+              href="/icon.png"
+              x={x - imgHalf} y={y - imgHalf}
+              width={imgHalf * 2} height={imgHalf * 2}
+              clipPath={`url(#clip-${level.id})`}
+              opacity={isDone ? 0.7 : 1}
+            />
+            <circle cx={x} cy={y} r={r} fill="none"
+              stroke={isCurrent ? "#43a047" : isDone ? "#a5d6a7" : "#c8e6c9"}
+              strokeWidth={isCurrent ? 2.5 : 1.5} />
+          </>
         )}
 
-        {/* Icon */}
-        <text x={x} y={y + 1} textAnchor="middle" dominantBaseline="middle"
-          fontSize={isCurrent ? 17 : 14} fontWeight="900"
-          fill={isLocked ? "#6b7280" : "white"}
-          style={{ userSelect: "none", fontFamily: "'Segoe UI', Arial, sans-serif",
-            textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}>
-          {isDone ? "★" : isLocked ? "🔒" : level.id}
-        </text>
-
-        {/* Stars for completed */}
         {isDone && (
-          <text x={x} y={y + r + 18} textAnchor="middle" fontSize={12} fill="#94a3b8"
-            style={{ userSelect: "none", filter: "drop-shadow(0 0 4px #94a3b8)" }}>
-            ★★★
-          </text>
+          <>
+            <circle cx={x + r * 0.68} cy={y + r * 0.68} r={10} fill="#43a047" />
+            <text x={x + r * 0.68} y={y + r * 0.68 + 1} textAnchor="middle" dominantBaseline="middle"
+              fontSize={11} fontWeight="900" fill="white" style={{ userSelect: "none" }}>✓</text>
+          </>
         )}
 
-        {/* "אתה כאן" tag */}
         {isCurrent && (
           <>
-            <rect x={x - 40} y={y - r - 36} width={80} height={24} rx={12}
-              fill={tier.dark} stroke={tier.main} strokeWidth={1.5} />
-            <text x={x} y={y - r - 22} textAnchor="middle" dominantBaseline="middle"
+            <rect x={x - 38} y={y - r - 33} width={76} height={22} rx={11} fill="#43a047" />
+            <text x={x} y={y - r - 21} textAnchor="middle" dominantBaseline="middle"
               fontSize={9} fontWeight="800" fill="white" style={{ userSelect: "none" }}>
               ◀ אתה כאן
             </text>
           </>
         )}
-
-        {isLocked && (
-          <text x={x} y={y + r + 15} textAnchor="middle" fontSize={9} fill="#6b7280"
-            fontWeight="600" style={{ userSelect: "none" }}>{level.id}</text>
-        )}
       </g>
     </g>
   );
+}
+
+// ── Jungle decoration components ─────────────────────────────
+function SvgTree({ x, y, scale = 1, rot = 0, flip = false }) {
+  return (
+    <g transform={`translate(${x},${y}) scale(${flip ? -scale : scale},${scale}) rotate(${rot})`} opacity={0.92}>
+      <rect x={-5} y={-28} width={11} height={30} rx={4} fill="#6d4c41" />
+      <circle cx={-5} cy={-50} r={21} fill="#2e7d32" />
+      <circle cx={7}  cy={-54} r={19} fill="#388e3c" />
+      <circle cx={0}  cy={-62} r={17} fill="#43a047" />
+      <circle cx={-3} cy={-70} r={11} fill="#66bb6a" />
+    </g>
+  );
+}
+function SvgBush({ x, y, scale = 1 }) {
+  return (
+    <g transform={`translate(${x},${y}) scale(${scale})`} opacity={0.9}>
+      <circle cx={0}   cy={0}   r={18} fill="#33691e" />
+      <circle cx={-14} cy={-5}  r={14} fill="#558b2f" />
+      <circle cx={14}  cy={-6}  r={13} fill="#33691e" />
+      <circle cx={0}   cy={-15} r={12} fill="#7cb342" />
+      <circle cx={-5}  cy={-22} r={7}  fill="#9ccc65" />
+    </g>
+  );
+}
+const FLOWER_COLORS = ["#f06292","#ff7043","#ce93d8","#ef9a9a","#ffcc02"];
+function SvgFlower({ x, y, scale = 1, color }) {
+  return (
+    <g transform={`translate(${x},${y}) scale(${scale})`} opacity={0.95}>
+      <rect x={-2} y={0} width={4} height={15} rx={2} fill="#558b2f" />
+      {[0,72,144,216,288].map(a => {
+        const rad = a * Math.PI / 180;
+        return <circle key={a} cx={Math.cos(rad)*7} cy={-15+Math.sin(rad)*7} r={5} fill={color} />;
+      })}
+      <circle cx={0} cy={-15} r={4} fill="#fff176" />
+    </g>
+  );
+}
+function genDecorations(mapH) {
+  const items = [];
+  const STEP  = 88;
+  for (let i = 0; i * STEP < mapH + STEP; i++) {
+    const y  = 50 + i * STEP;
+    const r1 = ((i * 1234567)     % 1000) / 1000;
+    const r2 = ((i * 7654321 + 1) % 1000) / 1000;
+    const r3 = ((i * 2345678 + 2) % 1000) / 1000;
+    const r4 = ((i * 8765432 + 3) % 1000) / 1000;
+    // Left
+    items.push({ type: Math.floor(r1 * 3), x: -10 + r2 * 28, y, scale: 0.65 + r3 * 0.45, rot: -10 + r4 * 20, flip: false, ci: Math.floor(r2 * 5) });
+    // Right
+    items.push({ type: Math.floor(r3 * 3), x: SVG_W + 10 - r1 * 22, y, scale: 0.6 + r2 * 0.5, rot: -10 + r3 * 20, flip: true, ci: Math.floor(r4 * 5) });
+    // Extra filler bushes/flowers between rows
+    if (i % 2 === 0) {
+      const r5 = ((i * 3456789 + 4) % 1000) / 1000;
+      const r6 = ((i * 9876543 + 5) % 1000) / 1000;
+      items.push({ type: r5 > 0.5 ? 1 : 2, x: 22 + r5 * 22, y: y + STEP / 2, scale: 0.45 + r6 * 0.3, rot: 0, flip: false, ci: Math.floor(r5 * 5) });
+      items.push({ type: r6 > 0.5 ? 1 : 2, x: SVG_W - 22 - r6 * 18, y: y + STEP / 2, scale: 0.45 + r5 * 0.3, rot: 0, flip: true,  ci: Math.floor(r6 * 5) });
+    }
+  }
+  return items;
 }
 
 // ── Main ──────────────────────────────────────────────────────
@@ -179,6 +205,7 @@ export default function CurriculumMap({ user, onSelectLevel, onDailyChallenge, o
   const [isAdmin,         setIsAdmin]         = useState(false);
   const [loading,         setLoading]         = useState(true);
   const [customLevels,    setCustomLevels]    = useState([]);
+  const [deletedLevelIds, setDeletedLevelIds] = useState(new Set());
   const currentMarkerRef = useRef(null);
 
   useEffect(() => {
@@ -191,11 +218,15 @@ export default function CurriculumMap({ user, onSelectLevel, onDailyChallenge, o
           setIsAdmin(s.exists());
         }
       }
-      // Load custom levels from Firestore
+      // Load levels from Firestore — track deleted and custom
       const lvlSnap = await getDocs(collection(db, "curriculumLevels"));
+      const deleted = new Set(
+        lvlSnap.docs.filter(d => d.data().deleted).map(d => d.data().id)
+      );
+      setDeletedLevelIds(deleted);
       const custom = lvlSnap.docs
         .map(d => d.data())
-        .filter(d => d.isCustom)
+        .filter(d => d.isCustom && !d.deleted)
         .map(d => ({ id: d.id, title: d.title }));
       setCustomLevels(custom);
 
@@ -230,11 +261,15 @@ export default function CurriculumMap({ user, onSelectLevel, onDailyChallenge, o
     return "available";
   };
 
-  const allLevels   = [...curriculum, ...customLevels].sort((a, b) => a.id - b.id);
+  const allLevels   = [...curriculum, ...customLevels]
+    .filter(l => !deletedLevelIds.has(l.id))
+    .sort((a, b) => a.id - b.id);
   const totalLevels = allLevels.length;
   const svgH        = getSvgH(totalLevels);
 
   useEffect(() => { onTotalLevels?.(totalLevels); }, [totalLevels]);
+
+  const decorations = useMemo(() => genDecorations(svgH), [svgH]);
 
   const currentData = allLevels.find(l => l.id === currentLevel);
   const tier  = getTier(currentLevel);
@@ -243,7 +278,7 @@ export default function CurriculumMap({ user, onSelectLevel, onDailyChallenge, o
 
   const bgStyle = {
     minHeight: "100vh",
-    background: "linear-gradient(180deg, #0a0e27 0%, #0d1f0e 35%, #0a1628 65%, #1a0a2e 100%)",
+    background: "linear-gradient(180deg, #e8f5e9 0%, #f9fbe7 40%, #e8f5e9 100%)",
     fontFamily: "'Segoe UI', Arial, sans-serif",
     position: "relative",
   };
@@ -257,26 +292,28 @@ export default function CurriculumMap({ user, onSelectLevel, onDailyChallenge, o
   return (
     <div style={bgStyle}>
 
-      {/* Starfield dots */}
-      <div style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none", overflow: "hidden" }}>
-        {stars.map((s, i) => (
-          <div key={i} style={{
-            position: "absolute", left: s.x, top: s.y,
-            width: s.r, height: s.r, borderRadius: "50%",
-            background: "white", opacity: s.o,
-            animation: `twinkle ${s.d}s ease-in-out infinite`,
-            animationDelay: `${s.delay}s`,
-          }} />
-        ))}
-      </div>
-
-      {/* Inject twinkle keyframes */}
+      {/* Floating math equations */}
       <style>{`
-        @keyframes twinkle {
-          0%,100% { opacity: var(--op, 0.6); }
-          50%      { opacity: 0.1; }
+        @keyframes floatEq {
+          0%   { transform: translateY(0px) rotate(var(--r)); opacity: calc(var(--o) * 0.3); }
+          40%  { transform: translateY(-20px) rotate(var(--r)); opacity: var(--o); }
+          100% { transform: translateY(0px) rotate(var(--r)); opacity: calc(var(--o) * 0.3); }
         }
       `}</style>
+      <div style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none", overflow: "hidden" }}>
+        {mathFloats.map((m, i) => (
+          <div key={i} style={{
+            position: "absolute", left: m.x, top: m.y,
+            fontSize: m.size, fontWeight: 700, color: "#43a047",
+            opacity: m.o, userSelect: "none",
+            fontFamily: "'Heebo', Arial, sans-serif",
+            animation: `floatEq ${m.d}s ease-in-out infinite`,
+            animationDelay: `${m.delay}s`,
+            "--r": `${m.rot}deg`,
+            "--o": m.o,
+          }}>{m.text}</div>
+        ))}
+      </div>
 
       {/* Daily Streak */}
       {phaseB && (
@@ -292,13 +329,15 @@ export default function CurriculumMap({ user, onSelectLevel, onDailyChallenge, o
       {/* Header */}
       <div style={{
         position: "sticky", top: 0, zIndex: 20,
-        background: "rgba(5,8,20,0.92)", backdropFilter: "blur(12px)",
-        borderBottom: "2px solid #475569",
+        background: "rgba(232,245,233,0.92)", backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        borderBottom: "1.5px solid #a5d6a7",
         padding: "10px 16px",
+        paddingTop: "calc(10px + env(safe-area-inset-top))",
         display: "flex", justifyContent: "space-between", alignItems: "center",
-        boxShadow: "0 4px 20px rgba(71,85,105,0.35)",
+        boxShadow: "0 2px 12px rgba(67,160,71,0.12)",
       }}>
-        <button onClick={onBack} style={rpgBtn}>← חזור</button>
+        <button onClick={onBack} style={mapBtn}>← חזור</button>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "20px 16px 40px", position: "relative", zIndex: 2 }}>
@@ -348,13 +387,18 @@ export default function CurriculumMap({ user, onSelectLevel, onDailyChallenge, o
         )}
 
         {/* MAP */}
-        <div style={{ position: "relative" }}>
+        <div style={{ position: "relative", width: "100%", maxWidth: SVG_W }}>
           <div ref={currentMarkerRef} style={{
             position: "absolute", top: curPt.y - 40,
             left: 0, width: 1, height: 1, pointerEvents: "none",
           }} />
-          <svg width={SVG_W} height={svgH} style={{ display: "block", overflow: "visible" }}>
-            <RoadPath completedLevels={completedLevels} totalLevels={totalLevels} />
+          <svg
+            viewBox={`0 0 ${SVG_W} ${svgH}`}
+            width="100%"
+            height={svgH}
+            style={{ display: "block", overflow: "visible", maxWidth: SVG_W }}
+          >
+<RoadPath completedLevels={completedLevels} totalLevels={totalLevels} />
             {allLevels.map(level => (
               <LevelNode key={level.id} level={level} status={getStatus(level.id)} onClick={onSelectLevel} totalLevels={totalLevels} />
             ))}
@@ -388,12 +432,32 @@ const rpgBtn = {
   boxShadow: "0 0 10px rgba(200,160,40,0.3), 0 3px 0 #0f172a",
 };
 
-// Pre-generate random stars (stable across renders)
-const stars = Array.from({ length: 80 }, (_, i) => ({
-  x: `${(i * 37.3 + 11) % 100}%`,
-  y: `${(i * 53.7 + 7)  % 100}%`,
-  r: i % 5 === 0 ? 3 : i % 3 === 0 ? 2 : 1.5,
-  o: 0.3 + (i % 7) * 0.1,
-  d: 2 + (i % 4),
-  delay: (i % 6) * 0.5,
+const mapBtn = {
+  background: "linear-gradient(160deg,#43a047,#2e7d32)",
+  color: "#fff",
+  border: "none",
+  borderRadius: 10,
+  padding: "8px 16px",
+  cursor: "pointer",
+  fontWeight: 800,
+  fontSize: "0.85rem",
+  boxShadow: "0 2px 8px rgba(46,125,50,0.25), 0 2px 0 #1b5e20",
+};
+
+// Pre-generate floating math labels (stable across renders)
+const MATH_EXPRS = [
+  "f(x)=√x", "x≠0", "x≥0", "1/x", "log(x)", "x²+1",
+  "√(x+1)", "x>0", "x∈ℝ", "f(x)=|x|", "ln(x)", "x≤5",
+  "∛x", "x²-4", "1/(x-1)", "√(1-x)", "x≠±2", "log₂(x)",
+  "f(x)=x³", "x+y=1", "√x·ln(x)", "1/√x", "x∈(0,∞)",
+];
+const mathFloats = Array.from({ length: 30 }, (_, i) => ({
+  x: `${(i * 41.3 + 5) % 100}%`,
+  y: `${(i * 57.1 + 9) % 100}%`,
+  text: MATH_EXPRS[i % MATH_EXPRS.length],
+  size: `${0.85 + (i % 4) * 0.18}rem`,
+  o: 0.22 + (i % 5) * 0.08,
+  d: 3 + (i % 4),
+  delay: (i % 7) * 0.6,
+  rot: (i % 3 === 0 ? -8 : i % 3 === 1 ? 6 : -3),
 }));
