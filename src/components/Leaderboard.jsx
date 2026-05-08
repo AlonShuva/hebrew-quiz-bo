@@ -44,11 +44,11 @@ export default function Leaderboard({ onBack }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const q = query(collection(db, "userProgress"), limit(100));
+    const q = query(collection(db, "leaderboard"), limit(100));
     const unsubscribe = onSnapshot(q, (snap) => {
       const all = snap.docs
         .map(d => ({ id: d.id, ...d.data() }))
-        .filter(p => p.displayName || p.email)
+        .filter(p => p.displayName)
         .sort((a, b) => (b.totalPoints || 0) - (a.totalPoints || 0))
         .slice(0, 20);
       setPlayers(all);

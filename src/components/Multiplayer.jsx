@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { db } from "../firebase/config";
-import { doc, setDoc, onSnapshot, updateDoc, collection, getDocs, query, getDoc, increment } from "firebase/firestore";
+import { doc, setDoc, onSnapshot, updateDoc, collection, getDocs, query, getDoc, increment, serverTimestamp } from "firebase/firestore";
 import { recordQuestionStat } from "../firebase/questionStats";
 import MathText from "./MathText";
 
@@ -102,13 +102,23 @@ export default function Multiplayer({ user, onBack }) {
           const progressRef = doc(db, "userProgress", user.uid);
           const progressSnap = await getDoc(progressRef);
           const prev = progressSnap.exists() ? progressSnap.data() : {};
+          const newTotal = (prev.totalPoints || 0) + newScore;
+          const displayName = user.displayName || user.email?.split('@')[0] || "שחקן";
           await setDoc(progressRef, {
             uid: user.uid,
-            displayName: user.displayName || user.email?.split('@')[0] || "שחקן",
+            displayName,
             email: user.email || "",
-            totalPoints: (prev.totalPoints || 0) + newScore,
+            totalPoints: newTotal,
             gamesPlayed: (prev.gamesPlayed || 0) + 1,
             lastSeen: new Date().toISOString(),
+          }, { merge: true });
+
+          // Sync public leaderboard entry
+          await setDoc(doc(db, "leaderboard", user.uid), {
+            displayName,
+            photoURL: user.photoURL || "",
+            totalPoints: newTotal,
+            currentLevel: prev.currentLevel || 1,
           }, { merge: true });
         } catch (e) {
           console.error("Failed to save game result to userProgress:", e);

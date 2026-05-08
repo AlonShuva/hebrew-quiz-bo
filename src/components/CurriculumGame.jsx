@@ -178,6 +178,15 @@ export default function CurriculumGame({ user, levelId, totalLevels = 30, onBack
           email: user.email || "",
           ...achievementUpdates,
         }, { merge: true });
+
+        // Sync public leaderboard entry (no email)
+        await setDoc(doc(db, "leaderboard", user.uid), {
+          displayName: user.displayName || user.email?.split('@')[0] || "שחקן",
+          photoURL: user.photoURL || "",
+          totalPoints: newTotal,
+          currentLevel: nextLevel <= totalLevels ? nextLevel : Number(levelId),
+        }, { merge: true });
+
         setSuccessTotal(newTotal);
         setTotalPoints(newTotal);
         setLevelPoints(toAdd); // show actual points earned (0 if already completed)
