@@ -172,13 +172,6 @@ button, input, textarea, select {
   .btn-back { padding: 11px 22px; }
 }
 
-/* Large desktop — center and cap width */
-@media (min-width: 1024px) {
-  #root {
-    max-width: 800px;
-    margin: 0 auto;
-  }
-}
 
 /* Progress bar */
 .progress-bar {

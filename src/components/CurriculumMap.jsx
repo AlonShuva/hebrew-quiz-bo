@@ -388,7 +388,7 @@ export default function CurriculumMap({ user, onSelectLevel, onDailyChallenge, o
         )}
 
         {/* MAP */}
-        <div style={{ position: "relative", width: "100%", maxWidth: Math.max(SVG_W, 480) }}>
+        <div style={{ position: "relative", width: "100%", maxWidth: SVG_W }}>
           <div ref={currentMarkerRef} style={{
             position: "absolute", top: curPt.y - 40,
             left: 0, width: 1, height: 1, pointerEvents: "none",
