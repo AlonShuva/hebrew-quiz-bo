@@ -154,46 +154,71 @@ export default function Multiplayer({ user, onBack }) {
   if (screen === "playing" && questions.length > 0) {
     const q = questions[current];
     return (
-      <div style={{ padding: "30px", maxWidth: "600px", margin: "0 auto", fontFamily: "Arial" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "16px" }}>
-          <span style={{ fontWeight: "bold" }}>שאלה {current + 1}/{questions.length}</span>
+      <div style={{
+        minHeight: "100vh", minHeight: "100dvh",
+        background: "linear-gradient(180deg, #e8f5e9 0%, #f9fbe7 40%, #e8f5e9 100%)",
+        fontFamily: "'Heebo', Arial, sans-serif",
+        display: "flex", flexDirection: "column",
+        paddingTop: "env(safe-area-inset-top)",
+        paddingBottom: "env(safe-area-inset-bottom)",
+        boxSizing: "border-box",
+      }}>
+        {/* Header */}
+        <div style={{
+          background: "rgba(232,245,233,0.92)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
+          borderBottom: "1.5px solid #a5d6a7", padding: "10px 16px",
+          paddingTop: "calc(10px + env(safe-area-inset-top))",
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+          boxShadow: "0 2px 12px rgba(67,160,71,0.12)",
+        }}>
+          <span style={{ fontWeight: 700, fontSize: "0.9rem", color: "#2e7d32" }}>שאלה {current + 1}/{questions.length}</span>
+          <button onClick={onBack} style={backBtn}>← חזור</button>
         </div>
 
-        {game && (
-          <div style={{ display: "flex", gap: "12px", marginBottom: "20px" }}>
-            {Object.entries(game.players).map(([uid, p]) => (
-              <div key={uid} style={{
-                flex: 1, padding: "10px", background: uid === user.uid ? "#E3F2FD" : "#F5F5F5",
-                borderRadius: "10px", textAlign: "center"
-              }}>
-                <p style={{ fontWeight: "bold", fontSize: "0.9rem" }}>{p.displayName}</p>
-                <p style={{ fontSize: "1.2rem", color: "#4285F4" }}>{p.score}</p>
-              </div>
-            ))}
+        <div style={{ flex: 1, padding: "14px 16px", maxWidth: 560, width: "100%", margin: "0 auto", boxSizing: "border-box" }}>
+          {game && (
+            <div style={{ display: "flex", gap: "10px", marginBottom: "14px" }}>
+              {Object.entries(game.players).map(([uid, p]) => (
+                <div key={uid} style={{
+                  flex: 1, padding: "10px 12px",
+                  background: uid === user.uid ? "rgba(67,160,71,0.12)" : "rgba(255,255,255,0.7)",
+                  border: uid === user.uid ? "1.5px solid rgba(67,160,71,0.4)" : "1.5px solid rgba(0,0,0,0.08)",
+                  borderRadius: 12, textAlign: "center",
+                  backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
+                }}>
+                  <p style={{ fontWeight: 700, fontSize: "0.85rem", color: "#1a4228", margin: 0 }}>{p.displayName}</p>
+                  <p style={{ fontSize: "1.1rem", color: "#43a047", fontWeight: 800, margin: "2px 0 0" }}>{p.score}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div style={{ background: "rgba(255,255,255,0.85)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", borderRadius: 16, padding: "18px 20px", marginBottom: "14px", border: "1.5px solid rgba(255,255,255,0.6)", boxShadow: "0 4px 16px rgba(0,0,0,0.08)" }}>
+            <h2 style={{ fontSize: "1.1rem", lineHeight: "1.65", color: "#1a4228", margin: 0, fontWeight: 600 }}><MathText text={q.text} /></h2>
           </div>
-        )}
 
-        <div style={{ background: "#f8f8f8", borderRadius: "12px", padding: "24px", marginBottom: "20px" }}>
-          <h2 style={{ fontSize: "1.3rem", lineHeight: "1.6" }}><MathText text={q.text} /></h2>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          {q.options.map((opt, i) => {
-            let bg = "#ffffff";
-            let border = "2px solid #e0e0e0";
-            if (selected !== null) {
-              if (i === q.correctIndex) { bg = "#e6f4ea"; border = "2px solid #34A853"; }
-              else if (i === selected) { bg = "#fce8e6"; border = "2px solid #EA4335"; }
-            }
-            return (
-              <button key={i} onClick={() => handleAnswer(i)} style={{
-                padding: "14px 18px", fontSize: "1rem", background: bg,
-                border, borderRadius: "10px", cursor: "pointer", textAlign: "right"
-              }}>
-                <MathText text={opt} />
-              </button>
-            );
-          })}
+          <div style={{ display: "flex", flexDirection: "column", gap: "9px" }}>
+            {q.options.map((opt, i) => {
+              let bg = "rgba(255,255,255,0.85)";
+              let border = "1.5px solid rgba(67,160,71,0.25)";
+              let color = "#1a4228";
+              if (selected !== null) {
+                if (i === q.correctIndex) { bg = "rgba(67,160,71,0.14)"; border = "1.5px solid #43a047"; color = "#2e7d32"; }
+                else if (i === selected)  { bg = "rgba(229,57,53,0.1)";  border = "1.5px solid #e53935"; color = "#c62828"; }
+              }
+              return (
+                <button key={i} onClick={() => handleAnswer(i)} style={{
+                  padding: "12px 16px", minHeight: 48, fontSize: "1rem", background: bg,
+                  border, borderRadius: 12, cursor: selected !== null ? "default" : "pointer",
+                  textAlign: "right", color, fontFamily: "inherit", fontWeight: 500,
+                  touchAction: "manipulation", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
+                  boxShadow: selected === null ? "0 2px 8px rgba(0,0,0,0.06)" : "none",
+                }}>
+                  <MathText text={opt} />
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
     );
@@ -241,7 +266,34 @@ export default function Multiplayer({ user, onBack }) {
   return <div style={centerStyle}><p>טוען...</p></div>;
 }
 
-const centerStyle = { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100vh", fontFamily: "Arial", padding: "20px" };
-const backBtn = { padding: "10px 20px", borderRadius: "8px", border: "1px solid #ddd", background: "white", cursor: "pointer" };
-const bigBtn = (color) => ({ padding: "14px 32px", fontSize: "1rem", backgroundColor: color, color: "white", border: "none", borderRadius: "8px", cursor: "pointer", width: "100%", maxWidth: "300px" });
-const inputStyle = { padding: "12px", fontSize: "1.2rem", borderRadius: "8px", border: "1px solid #ddd", width: "100%", maxWidth: "300px", textAlign: "center", marginBottom: "12px" };
+const centerStyle = {
+  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+  minHeight: "100vh", minHeight: "100dvh",
+  fontFamily: "'Heebo', Arial, sans-serif",
+  padding: "20px",
+  paddingTop: "calc(20px + env(safe-area-inset-top))",
+  paddingBottom: "calc(20px + env(safe-area-inset-bottom))",
+  background: "linear-gradient(180deg, #e8f5e9 0%, #f9fbe7 40%, #e8f5e9 100%)",
+  boxSizing: "border-box",
+};
+const backBtn = {
+  padding: "10px 20px", minHeight: 44, borderRadius: 10,
+  border: "none", background: "linear-gradient(160deg,#43a047,#2e7d32)",
+  color: "white", cursor: "pointer", fontWeight: 800, fontSize: "0.9rem",
+  touchAction: "manipulation", fontFamily: "inherit",
+  boxShadow: "0 2px 8px rgba(46,125,50,0.25)",
+};
+const bigBtn = (color) => ({
+  padding: "14px 24px", minHeight: 48, fontSize: "1rem",
+  backgroundColor: color, color: "white", border: "none",
+  borderRadius: 12, cursor: "pointer", width: "100%", maxWidth: "300px",
+  touchAction: "manipulation", fontFamily: "inherit", fontWeight: 700,
+  boxShadow: "0 3px 10px rgba(0,0,0,0.15)",
+});
+const inputStyle = {
+  padding: "13px", fontSize: "16px", borderRadius: 10,
+  border: "1.5px solid rgba(67,160,71,0.35)", width: "100%", maxWidth: "300px",
+  textAlign: "center", marginBottom: "12px", fontFamily: "inherit",
+  background: "rgba(255,255,255,0.9)", color: "#1a4228", outline: "none",
+  boxSizing: "border-box",
+};

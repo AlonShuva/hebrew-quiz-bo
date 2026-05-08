@@ -440,6 +440,7 @@ export default function CurriculumGame({ user, levelId, totalLevels = 30, onBack
                 display: "flex", alignItems: "center", gap: "10px", transition: "all 0.2s", color,
                 fontFamily: "inherit", fontWeight: isSelected || (selected !== null && isCorrect) ? "600" : "400",
                 boxShadow: selected === null ? "var(--shadow)" : "none",
+                touchAction: "manipulation", minHeight: "44px",
               }}
                 onMouseEnter={e => { if (selected !== null) return; e.currentTarget.style.borderColor = "var(--primary-light)"; e.currentTarget.style.background = "var(--primary-bg)"; }}
                 onMouseLeave={e => { if (selected !== null) return; e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.background = "var(--card)"; }}

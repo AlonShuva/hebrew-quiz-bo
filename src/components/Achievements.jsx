@@ -157,7 +157,7 @@ export default function Achievements({ user, onBack }) {
           const active = activeCategory === cat.key;
           return (
             <button key={cat.key} onClick={() => setActiveCategory(cat.key)} style={{
-              padding: "6px 12px", borderRadius: 99, whiteSpace: "nowrap", fontFamily: "inherit",
+              padding: "10px 14px", minHeight: 44, borderRadius: 99, whiteSpace: "nowrap", fontFamily: "inherit", touchAction: "manipulation",
               border: active ? "2px solid #43a047" : "1.5px solid rgba(255,255,255,0.5)",
               background: active ? "rgba(67,160,71,0.18)" : "rgba(255,255,255,0.7)",
               backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",

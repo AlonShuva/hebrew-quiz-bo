@@ -142,6 +142,24 @@ button, input, textarea, select {
   position: relative;
 }
 
+/* Scrollable areas — smooth momentum on iOS */
+.scroll-y {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+/* Small screens — reduce heading sizes */
+@media (max-width: 360px) {
+  h1 { font-size: 1.4rem !important; }
+  h2 { font-size: 1.1rem !important; }
+}
+
+/* Landscape mode — reduce vertical padding */
+@media (orientation: landscape) and (max-height: 500px) {
+  .page { padding-top: 12px; padding-bottom: 12px; }
+}
+
 /* Progress bar */
 .progress-bar {
   width: 100%;

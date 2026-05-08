@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run:*)",
+      "Bash(npm install:*)",
+      "Bash(vercel --prod)",
+      "Bash(vercel ls:*)",
+      "Bash(vercel alias:*)",
+      "Bash(taskkill /F /IM node.exe)",
+      "Bash(netstat -ano)",
+      "Bash(taskkill *)",
+      "Bash(curl -s http://localhost:5173)",
+      "WebFetch(domain:www.youtube.com)",
+      "Bash(firebase deploy *)",
+      "Bash(gh --version)",
+      "Bash(git init *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git config *)",
+      "Bash(git remote *)",
+      "Bash(git branch *)",
+      "Bash(git push *)",
+      "Bash(powershell -command \"\\(Get-ChildItem 'c:\\\\Users\\\\alons\\\\hebrew-quiz-bot\\\\node_modules' -Recurse | Measure-Object -Property Length -Sum\\).Sum / 1MB\")",
+      "Bash(start \"\" \"c:\\\\Users\\\\alons\\\\hebrew-quiz-bot\\\\class-diagram.html\")",
+      "Bash(findstr \":517\")",
+      "Bash(findstr \"LISTENING\")",
+      "Bash(findstr \":51\")",
+      "PowerShell(Get-NetTCPConnection -State Listen | Where-Object { $_.LocalPort -ge 5173 -and $_.LocalPort -le 5200 } | Select-Object LocalPort, OwningProcess)",
+      "PowerShell(Get-NetTCPConnection -State Listen | Where-Object { $_.LocalPort -ge 5173 -and $_.LocalPort -le 5200 } | Select-Object LocalPort)",
+      "Bash(npx vite *)",
+      "Bash(findstr recharts *)",
+      "PowerShell(npx vite build 2>&1)",
+      "Bash(start \"c:\\\\Users\\\\alons\\\\hebrew-quiz-bot\\\\state-machine.html\")",
+      "Bash(start \"c:\\\\Users\\\\alons\\\\hebrew-quiz-bot\\\\sequence-diagram-uc1.html\")",
+      "Bash(git checkout *)",
+      "Bash(node -e ' *)",
+      "PowerShell(Stop-Process -Name \"node\" -ErrorAction SilentlyContinue)"
+    ]
+  }
+}

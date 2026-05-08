@@ -278,8 +278,9 @@ export default function CurriculumMap({ user, onSelectLevel, onDailyChallenge, o
 
   const bgStyle = {
     minHeight: "100vh",
+    minHeight: "100dvh",
     background: "linear-gradient(180deg, #e8f5e9 0%, #f9fbe7 40%, #e8f5e9 100%)",
-    fontFamily: "'Segoe UI', Arial, sans-serif",
+    fontFamily: "'Heebo', Arial, sans-serif",
     position: "relative",
   };
 
@@ -317,7 +318,7 @@ export default function CurriculumMap({ user, onSelectLevel, onDailyChallenge, o
 
       {/* Daily Streak */}
       {phaseB && (
-        <div style={{ position: "fixed", top: 68, left: 12, zIndex: 40, ...rpgPanel, padding: "8px 12px" }}>
+        <div style={{ position: "fixed", top: 68, right: 12, zIndex: 40, ...rpgPanel, padding: "8px 12px" }}>
           <div style={{ fontSize: "0.6rem", color: "#94a3b8", fontWeight: 700, marginBottom: 2 }}>Daily Streak</div>
           <div style={{ display: "flex", gap: 2, justifyContent: "center", marginBottom: 2 }}>
             {[1,2,3].map(i => <span key={i} style={{ fontSize: 11 }}>{i <= streak ? "⭐" : "☆"}</span>)}
