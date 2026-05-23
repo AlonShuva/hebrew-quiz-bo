@@ -559,6 +559,7 @@ function MathFloatsBg() {
             fontSize: m.size, fontWeight: 700, color: "#43a047",
             opacity: m.o, userSelect: "none",
             fontFamily: "'Heebo', Arial, sans-serif",
+            direction: "ltr",
             animation: `floatEq ${m.d}s ease-in-out infinite`,
             animationDelay: `${m.delay}s`,
             "--r": `${m.rot}deg`,

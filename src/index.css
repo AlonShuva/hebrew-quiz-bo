@@ -7,6 +7,7 @@
 /* Fluid base font — scales from 14px (320px screen) to 17px (1280px+ screen) */
 html {
   font-size: clamp(14px, calc(11px + 0.9375vw), 17px);
+  direction: ltr;
 }
 
 :root {

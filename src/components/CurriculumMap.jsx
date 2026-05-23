@@ -250,7 +250,7 @@ export default function CurriculumMap({ user, onSelectLevel, onDailyChallenge, o
 
   useEffect(() => {
     if (!loading && currentMarkerRef.current) {
-      setTimeout(() => currentMarkerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 150);
+      currentMarkerRef.current?.scrollIntoView({ behavior: "instant", block: "center" });
     }
   }, [loading]);
 
@@ -309,6 +309,7 @@ export default function CurriculumMap({ user, onSelectLevel, onDailyChallenge, o
             fontSize: m.size, fontWeight: 700, color: "#43a047",
             opacity: m.o, userSelect: "none",
             fontFamily: "'Heebo', Arial, sans-serif",
+            direction: "ltr",
             animation: `floatEq ${m.d}s ease-in-out infinite`,
             animationDelay: `${m.delay}s`,
             "--r": `${m.rot}deg`,
@@ -448,10 +449,10 @@ const mapBtn = {
 
 // Pre-generate floating math labels (stable across renders)
 const MATH_EXPRS = [
-  "f(x)=√x", "x≠0", "x≥0", "1/x", "log(x)", "x²+1",
-  "√(x+1)", "x>0", "x∈ℝ", "f(x)=|x|", "ln(x)", "x≤5",
-  "∛x", "x²-4", "1/(x-1)", "√(1-x)", "x≠±2", "log₂(x)",
-  "f(x)=x³", "x+y=1", "√x·ln(x)", "1/√x", "x∈(0,∞)",
+  "f(x)=√x", "x≠0", "x≥0", "1/x", "log(x)", "f(x)=x²+1",
+  "√(x+1)", "x>0", "x∈ℝ", "f(x)=|x|", "ln(x)", "x∈(-∞,5]",
+  "∛x", "√(x²-4)", "1/(x-1)", "√(1-x)", "x≠±2", "log₂(x)",
+  "f(x)=x³", "D: x>-1", "√x·ln(x)", "1/√x", "x∈(0,∞)",
 ];
 const mathFloats = Array.from({ length: 30 }, (_, i) => ({
   x: `${(i * 41.3 + 5) % 100}%`,

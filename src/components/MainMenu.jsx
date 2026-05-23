@@ -11,11 +11,13 @@ const MENU_ITEMS = [
   { key: "leaderboard",  icon: "🏆", label: "לוח תוצאות",   desc: "ראה מי בראש הטבלה" },
   { key: "achievements",  icon: "🏅", label: "הישגים",        desc: "עקוב אחר ההתקדמות שלך" },
   { key: "admin",         icon: "⚙️", label: "ניהול שאלות",  desc: "הוסף ועדכן שאלות" },
+  { key: "about",         icon: "👥", label: "אודות הפרויקט", desc: "הצוות שמאחורי המשחק" },
 ];
 
 export default function MainMenu({ user, onNavigate }) {
   const [streak, setStreak] = useState(0);
   const [lives, setLives] = useState(MAX_LIVES);
+  const [showAbout, setShowAbout] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -130,7 +132,7 @@ export default function MainMenu({ user, onNavigate }) {
         {MENU_ITEMS.map((btn) => (
           <button
             key={btn.key}
-            onClick={() => onNavigate(btn.key)}
+            onClick={() => btn.key === "about" ? setShowAbout(true) : onNavigate(btn.key)}
             style={{
               padding: "14px 18px",
               background: "rgba(255,255,255,0.88)",
@@ -185,13 +187,119 @@ export default function MainMenu({ user, onNavigate }) {
       <button
         onClick={() => auth.signOut()}
         style={{
-          marginTop: 24, color: "rgba(255,255,255,0.65)", background: "none",
-          border: "none", cursor: "pointer", fontSize: "0.82rem",
+          marginTop: 28,
+          color: "rgba(255,255,255,0.9)",
+          background: "rgba(255,255,255,0.12)",
+          border: "1.5px solid rgba(255,255,255,0.35)",
+          borderRadius: 99,
+          cursor: "pointer",
+          fontSize: "0.9rem",
+          fontWeight: 700,
           fontFamily: "inherit",
+          padding: "10px 28px",
+          minHeight: 44,
+          backdropFilter: "blur(8px)",
+          WebkitBackdropFilter: "blur(8px)",
+          transition: "all 0.18s",
         }}
+        onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.22)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.6)"; }}
+        onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.12)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.35)"; }}
       >
         התנתק ←
       </button>
+
+      {/* About modal */}
+      {showAbout && (
+        <div
+          onClick={() => setShowAbout(false)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 100,
+            background: "rgba(0,0,0,0.55)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: "20px",
+            backdropFilter: "blur(4px)",
+            WebkitBackdropFilter: "blur(4px)",
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: "rgba(255,255,255,0.97)",
+              borderRadius: 20,
+              padding: "32px 28px",
+              maxWidth: 420,
+              width: "100%",
+              boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+              fontFamily: "'Heebo', Arial, sans-serif",
+              direction: "rtl",
+              textAlign: "right",
+            }}
+          >
+            {/* Header */}
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+              <div style={{
+                width: 52, height: 52, borderRadius: 14, flexShrink: 0,
+                background: "linear-gradient(135deg,#43a047,#2e7d32)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: "1.6rem",
+                boxShadow: "0 4px 14px rgba(67,160,71,0.35)",
+              }}>👥</div>
+              <div>
+                <div style={{ fontWeight: 900, fontSize: "1.15rem", color: "#1a4228" }}>אודות הפרויקט</div>
+                <div style={{ fontSize: "0.78rem", color: "#4a7c59", fontWeight: 600 }}>מכללת סמי שמעון</div>
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div style={{ height: 2, background: "linear-gradient(90deg,#43a047,#a5d6a7)", borderRadius: 2, marginBottom: 20 }} />
+
+            {/* Content */}
+            <p style={{ fontSize: "0.97rem", lineHeight: 1.75, color: "#1a4228", marginBottom: 18 }}>
+              משחק זה נוצר כחלק מפרויקט גמר במכללת סמי שמעון על ידי{" "}
+              <strong style={{ color: "#2e7d32" }}>אלון שובה</strong> ו-<strong style={{ color: "#2e7d32" }}>יוסי לוין</strong>,
+              כחלק מלימודיהם לתואר בהנדסה תעשייה וניהול.
+            </p>
+            <p style={{ fontSize: "0.97rem", lineHeight: 1.75, color: "#1a4228", marginBottom: 18 }}>
+              הפרויקט פותח בליווי המרצה <strong style={{ color: "#2e7d32" }}>דויד כודיש</strong> ומטרתו לעזור לתלמידים ולסטודנטים מכל הארץ לשפר את הבנתם בנושא{" "}
+              <strong style={{ color: "#2e7d32" }}>תחום ההגדרה של פונקציות</strong> — בצורה כיפית, אינטראקטיבית ונגישה.
+            </p>
+
+            {/* Team */}
+            <div style={{
+              background: "rgba(67,160,71,0.08)",
+              border: "1.5px solid rgba(67,160,71,0.25)",
+              borderRadius: 12,
+              padding: "14px 16px",
+              marginBottom: 22,
+            }}>
+              <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#4a7c59", marginBottom: 10 }}>הצוות</div>
+              {[
+                { name: "אלון שובה", role: "מפתח ומעצב" },
+                { name: "יוסי לוין", role: "מפתח ומעצב" },
+                { name: "דויד כודיש", role: "מרצה מנחה" },
+              ].map(p => (
+                <div key={p.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                  <span style={{ fontSize: "0.9rem", fontWeight: 800, color: "#1a4228" }}>{p.name}</span>
+                  <span style={{ fontSize: "0.78rem", color: "#4a7c59", background: "rgba(67,160,71,0.12)", borderRadius: 99, padding: "2px 10px" }}>{p.role}</span>
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setShowAbout(false)}
+              style={{
+                width: "100%", padding: "13px", borderRadius: 12, border: "none",
+                background: "linear-gradient(135deg,#43a047,#2e7d32)",
+                color: "white", fontWeight: 800, fontSize: "1rem",
+                cursor: "pointer", fontFamily: "inherit",
+                boxShadow: "0 4px 0 #1b5e20, 0 4px 14px rgba(67,160,71,0.3)",
+              }}
+            >
+              סגור
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

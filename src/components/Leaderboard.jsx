@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { db } from "../firebase/config";
-import { collection, query, limit, onSnapshot } from "firebase/firestore";
+import { collection, query, onSnapshot } from "firebase/firestore";
 
 const PODIUM_COLORS = [
   { bg: "rgba(251,191,36,0.15)", border: "#f59e0b", crown: "👑", label: "מקום 1" },
@@ -44,13 +44,12 @@ export default function Leaderboard({ onBack }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const q = query(collection(db, "leaderboard"), limit(100));
+    const q = query(collection(db, "leaderboard"));
     const unsubscribe = onSnapshot(q, (snap) => {
       const all = snap.docs
         .map(d => ({ id: d.id, ...d.data() }))
         .filter(p => p.displayName)
-        .sort((a, b) => (b.totalPoints || 0) - (a.totalPoints || 0))
-        .slice(0, 20);
+        .sort((a, b) => (b.totalPoints || 0) - (a.totalPoints || 0));
       setPlayers(all);
       setLoading(false);
     });
@@ -67,10 +66,12 @@ export default function Leaderboard({ onBack }) {
   return (
     <div style={{
       minHeight: "100vh",
+      minHeight: "100dvh",
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
       padding: "30px 20px",
+      paddingBottom: "calc(40px + env(safe-area-inset-bottom))",
       fontFamily: "'Heebo', Arial, sans-serif",
     }}>
       <div style={{
