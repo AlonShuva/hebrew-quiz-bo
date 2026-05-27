@@ -119,22 +119,21 @@ firebase deploy
 ## Documentation
 
 ### Design & Architecture
-- [Game Design Document](docs/game-design-document.md) — Game modes, core loop, visual style, accessibility
-- [Firebase Architecture](docs/firebase-architecture.md) — Auth, Firestore, hosting, security rules
-- [Firestore Collections](docs/firestore-collections.md) — Full schema for all collections
-- [User Flow](docs/user-flow.md) — Screen inventory, navigation, auth flow, detailed game flows
+- [Game Design Document](https://github.com/AlonShuva/hebrew-quiz-bo/blob/main/docs/game-design-document.md) — Game modes, core loop, visual style, accessibility
+- [Firebase Architecture](https://github.com/AlonShuva/hebrew-quiz-bo/blob/main/docs/firebase-architecture.md) — Auth, Firestore, hosting, security rules
+- [Firestore Collections](https://github.com/AlonShuva/hebrew-quiz-bo/blob/main/docs/firestore-collections.md) — Full schema for all collections
+- [User Flow](https://github.com/AlonShuva/hebrew-quiz-bo/blob/main/docs/user-flow.md) — Screen inventory, navigation, auth flow, detailed game flows
 
 ### Systems
-- [Economy & Points System](docs/economy-points-system.md) — Points, streaks, lives, persistence
-- [Multiplayer System](docs/multiplayer-system.md) — Room architecture, real-time sync, state machine
-- [Achievement System](docs/achievement-system.md) — Badge catalog, unlock flow, categories
-- [Leaderboard System](docs/leaderboards.md) — Data model, query logic, security
-- [Adaptive Difficulty System](docs/adaptive-difficulty.md) — Question stats, planned adaptation roadmap
-- [Admin Panel](docs/admin-panel.md) — Access control, question stats, BI dashboard
+- [Economy & Points System](https://github.com/AlonShuva/hebrew-quiz-bo/blob/main/docs/economy-points-system.md) — Points, streaks, lives, persistence
+- [Multiplayer System](https://github.com/AlonShuva/hebrew-quiz-bo/blob/main/docs/multiplayer-system.md) — Room architecture, real-time sync, state machine
+- [Achievement System](https://github.com/AlonShuva/hebrew-quiz-bo/blob/main/docs/achievement-system.md) — Badge catalog, unlock flow, categories
+- [Leaderboard System](https://github.com/AlonShuva/hebrew-quiz-bo/blob/main/docs/leaderboards.md) — Data model, query logic, security
+- [Adaptive Difficulty System](https://github.com/AlonShuva/hebrew-quiz-bo/blob/main/docs/adaptive-difficulty.md) — Question stats, planned adaptation roadmap
+- [Admin Panel](https://github.com/AlonShuva/hebrew-quiz-bo/blob/main/docs/admin-panel.md) — Access control, question stats, BI dashboard
 
 ### Requirements
-- [user-stories.md](user-stories.md) — 100 Hebrew user stories across 12 categories
-- [user-stories.docx](user-stories.docx) — Word version of user stories
+- [user-stories.md](https://github.com/AlonShuva/hebrew-quiz-bo/blob/main/user-stories.md) — 100 Hebrew user stories across 12 categories
 
 ### Diagrams
 - [sequence-diagram-uc1.html](sequence-diagram-uc1.html) — UC-01 sequence diagram
